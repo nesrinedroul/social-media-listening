@@ -21,6 +21,7 @@ class WaitlistEntry(models.Model):
     class Meta:
         db_table  = 'waitlist'
         ordering  = ['-registered_at']
-
+        verbose_name        = 'Waitlist entry'
+        verbose_name_plural = 'Waitlist entries'
     def __str__(self):
         return f'{self.email} ({self.status})'
