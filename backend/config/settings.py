@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'channels',
+    'drf_spectacular',
     # Your apps
     'apps.accounts',
     'apps.clients',
@@ -62,6 +63,13 @@ TEMPLATES = [
     },
 ]
 
+SPECTACULAR_SETTINGS = {
+    'TITLE':       'Social Media Listening API',
+    'DESCRIPTION': 'API for the social media listening and agent management platform',
+    'VERSION':     '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
 DATABASES = {
     'default': {
         'ENGINE':   'django.db.backends.postgresql',
@@ -95,6 +103,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  
 }
 
 META_VERIFY_TOKEN = env('META_VERIFY_TOKEN', default='')
