@@ -1,5 +1,6 @@
 import environ
 from pathlib import Path
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -16,6 +17,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     # Third party
     'rest_framework',
@@ -33,6 +35,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware'
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -70,16 +73,25 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
 }
 
-DATABASES = {
-    'default': {
-        'ENGINE':   'django.db.backends.postgresql',
-        'NAME':     env('DB_NAME',     default='social-listening'),
-        'USER':     env('DB_USER',     default='postgres'),
-        'PASSWORD': env('DB_PASSWORD', default=''),
-        'HOST':     env('DB_HOST',     default='localhost'),
-        'PORT':     env('DB_PORT',     default='5432'),
+
+
+DATABASE_URL = env('DATABASE_URL', default=None)
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(default=DATABASE_URL)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE':   'django.db.backends.postgresql',
+            'NAME':     env('DB_NAME',     default='social_listening'),
+            'USER':     env('DB_USER',     default='postgres'),
+            'PASSWORD': env('DB_PASSWORD', default=''),
+            'HOST':     env('DB_HOST',     default='localhost'),
+            'PORT':     env('DB_PORT',     default='5432'),
+        }
+    }
 
 MONGODB_URI     = env('MONGODB_URI',     default='mongodb://localhost:27017')
 MONGODB_DB_NAME = env('MONGODB_DB_NAME', default='social_listening_db')
@@ -114,3 +126,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LANGUAGE_CODE      = 'en-us'
 TIME_ZONE          = 'UTC'
 USE_TZ             = True
+STATIC_ROOT  = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
