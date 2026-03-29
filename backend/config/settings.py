@@ -28,7 +28,7 @@ INSTALLED_APPS = [
     'apps.conversations',
     'apps.messages',
     'apps.integrations',
-    'apps.waitlist',
+    
 ]
 
 MIDDLEWARE = [
