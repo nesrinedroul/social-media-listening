@@ -96,15 +96,19 @@ else:
 MONGODB_URI     = env('MONGODB_URI',     default='mongodb://localhost:27017')
 MONGODB_DB_NAME = env('MONGODB_DB_NAME', default='social_listening_db')
 
+REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG':  {'hosts': [env('REDIS_URL', default='redis://localhost:6379/0')]},
+        'CONFIG':  {
+            'hosts': [REDIS_URL],
+        },
     }
 }
 
-CELERY_BROKER_URL     = env('REDIS_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = env('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_BROKER_URL     = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
 
 CORS_ALLOW_ALL_ORIGINS = True
 
