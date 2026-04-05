@@ -44,6 +44,7 @@ class User(AbstractBaseUser, PermissionsMixin):
                                           default=Status.OFFLINE, null=True, blank=True)
     open_conversations = models.PositiveIntegerField(default=0, null=True, blank=True)
     last_assigned_at   = models.DateTimeField(null=True, blank=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD  = 'email'
     REQUIRED_FIELDS = []

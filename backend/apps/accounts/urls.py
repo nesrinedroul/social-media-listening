@@ -1,6 +1,6 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import RegisterView, UserListView, UserDetailView, MeView, AgentStatusView, LogoutView
+from .views import AgentListView, RegisterView, UserListView, UserDetailView, MeView, AgentStatusView, LogoutView
 
 urlpatterns = [
     # Auth
@@ -13,4 +13,5 @@ urlpatterns = [
     path('me/status/',     AgentStatusView.as_view(),      name='agent-status'),
     path('users/',         UserListView.as_view(),         name='user-list'),
     path('users/<uuid:pk>/', UserDetailView.as_view(),    name='user-detail'),
+    path('agents/', AgentListView.as_view(), name='agent-list'),
 ]

@@ -65,3 +65,39 @@ class LogoutView(APIView):
         except Exception:
             pass
         return Response({'detail': 'Logged out'}, status=status.HTTP_200_OK)
+
+class AgentListView(APIView):
+    """
+    Returns all agents with their current status.
+    Used by supervisor to see who is online/busy/offline.
+    """
+    permission_classes = [IsAdminOrSupervisor]
+
+    def get(self, request):
+        from django.utils import timezone
+        from datetime import timedelta
+
+        agents = User.objects.filter(
+            role=User.Role.AGENT,
+            is_active=True,
+        ).order_by('status', 'open_conversations')
+
+        data = []
+        for agent in agents:
+            # consider agent inactive if last_seen > 2 minutes ago
+            is_recently_active = (
+                agent.last_seen and
+                agent.last_seen >= timezone.now() - timedelta(minutes=2)
+            )
+
+            data.append({
+                'id':                str(agent.id),
+                'email':             agent.email,
+                'full_name':         agent.full_name(),
+                'status':            agent.status,
+                'open_conversations': agent.open_conversations,
+                'last_seen':         agent.last_seen.isoformat() if agent.last_seen else None,
+                'is_active':         is_recently_active,
+            })
+
+        return Response(data)
