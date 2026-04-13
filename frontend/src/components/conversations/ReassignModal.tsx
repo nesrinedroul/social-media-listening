@@ -1,0 +1,73 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { authApi, conversationsApi } from '../../api/services';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
+import { Avatar } from '../ui/Avatar';
+
+const statusDot = { online: 'bg-emerald-500', busy: 'bg-amber-500', offline: 'bg-slate-500' };
+
+interface ReassignModalProps {
+  conversationId: string;
+  open: boolean;
+  onClose: () => void;
+}
+
+export function ReassignModal({ conversationId, open, onClose }: ReassignModalProps) {
+  const qc = useQueryClient();
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const { data: agents = [] } = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => authApi.agents().then(r => r.data),
+    enabled: open,
+  });
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => conversationsApi.reassign(conversationId, selected!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      onClose();
+    },
+  });
+
+  return (
+    <Modal open={open} onClose={onClose} title="Reassign Conversation">
+      <p className="text-xs text-slate-400 mb-4">Select an agent to reassign this conversation to.</p>
+      <div className="space-y-1 max-h-64 overflow-y-auto mb-4">
+        {agents.map(agent => (
+          <button
+            key={agent.id}
+            onClick={() => setSelected(agent.id)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              selected === agent.id ? 'bg-blue-600/20 border border-blue-500/40' : 'hover:bg-slate-800'
+            }`}
+          >
+            <div className="relative">
+              <Avatar name={agent.full_name || agent.email} size="sm" />
+              <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ring-slate-900 ${statusDot[agent.status ?? 'offline']}`} />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-sm text-slate-200 truncate">{agent.full_name || agent.email}</p>
+              <p className="text-xs text-slate-500">{agent.open_conversations} open</p>
+            </div>
+            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+              agent.status === 'online' ? 'bg-emerald-500/15 text-emerald-400' :
+              agent.status === 'busy'   ? 'bg-amber-500/15 text-amber-400' :
+                                          'bg-slate-700 text-slate-400'
+            }`}>
+              {agent.status}
+            </span>
+          </button>
+        ))}
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+        <Button size="sm" disabled={!selected} loading={isPending} onClick={() => mutate()}>
+          Reassign
+        </Button>
+      </div>
+    </Modal>
+  );
+}
