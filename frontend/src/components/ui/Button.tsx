@@ -6,24 +6,25 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
-const variantMap = {
-  primary:   'bg-blue-600 hover:bg-blue-500 text-white',
-  secondary: 'bg-slate-700 hover:bg-slate-600 text-slate-100',
-  ghost:     'bg-transparent hover:bg-slate-700/60 text-slate-300',
-  danger:    'bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30',
-};
+const sizeMap = { sm: 'px-3 py-1.5 text-xs', md: 'px-4 py-2 text-sm', lg: 'px-6 py-2.5 text-sm' };
 
-const sizeMap = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-2.5 text-sm',
-};
+export function Button({
+  variant = 'primary', size = 'md', loading, children, className = '', disabled, style, ...props
+}: ButtonProps) {
+  const base = `inline-flex items-center gap-2 font-medium rounded-lg transition-colors
+    disabled:opacity-50 disabled:cursor-not-allowed ${sizeMap[size]} ${className}`;
 
-export function Button({ variant = 'primary', size = 'md', loading, children, className = '', disabled, ...props }: ButtonProps) {
+  const variantStyle: React.CSSProperties =
+    variant === 'primary'   ? { background: 'var(--brand)',    color: '#fff' } :
+    variant === 'secondary' ? { background: 'var(--active)',   color: 'var(--text-1)', border: '1px solid var(--border)' } :
+    variant === 'ghost'     ? { background: 'transparent',     color: 'var(--text-2)' } :
+    /* danger */               { background: '#7f1d1d22', color: '#f87171', border: '1px solid #7f1d1d44' };
+
   return (
     <button
       disabled={disabled ?? loading}
-      className={`inline-flex items-center gap-2 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantMap[variant]} ${sizeMap[size]} ${className}`}
+      className={base}
+      style={{ ...variantStyle, ...style }}
       {...props}
     >
       {loading && (
@@ -36,3 +37,54 @@ export function Button({ variant = 'primary', size = 'md', loading, children, cl
     </button>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import { type ButtonHTMLAttributes } from 'react';
+
+// interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+//   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+//   size?: 'sm' | 'md' | 'lg';
+//   loading?: boolean;
+// }
+
+// const variantMap = {
+//   primary:   'bg-blue-600 hover:bg-blue-500 text-white',
+//   secondary: 'bg-slate-700 hover:bg-slate-600 text-slate-100',
+//   ghost:     'bg-transparent hover:bg-slate-700/60 text-slate-300',
+//   danger:    'bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30',
+// };
+
+// const sizeMap = {
+//   sm: 'px-3 py-1.5 text-xs',
+//   md: 'px-4 py-2 text-sm',
+//   lg: 'px-6 py-2.5 text-sm',
+// };
+
+// export function Button({ variant = 'primary', size = 'md', loading, children, className = '', disabled, ...props }: ButtonProps) {
+//   return (
+//     <button
+//       disabled={disabled ?? loading}
+//       className={`inline-flex items-center gap-2 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantMap[variant]} ${sizeMap[size]} ${className}`}
+//       {...props}
+//     >
+//       {loading && (
+//         <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+//           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+//           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+//         </svg>
+//       )}
+//       {children}
+//     </button>
+//   );
+// }
