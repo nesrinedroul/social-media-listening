@@ -1,25 +1,14 @@
 import { create } from 'zustand';
 import type { User } from '../types';
 
-export type Theme = 'light' | 'dark' | 'system';
-
 interface AuthState {
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
-  theme: Theme;
   setTokens: (access: string, refresh: string) => void;
   setUser: (user: User) => void;
   logout: () => void;
   isAuthenticated: () => boolean;
-  setTheme: (t: Theme) => void;
-}
-
-function applyTheme(theme: Theme) {
-  const root = document.documentElement;
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
-  root.classList.toggle('dark', isDark);
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {

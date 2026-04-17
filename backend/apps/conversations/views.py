@@ -102,98 +102,63 @@ class ReassignConversationView(APIView):
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 class SimulateIncomingMessageView(APIView):
     """
-    Simulates an incoming message from a client via Meta.
+    Simulates an incoming message from Meta.
     Use this for testing without connecting Meta API.
-    Available to admin and supervisor only.
+    Only available when DEBUG=True or for admin users.
     """
     permission_classes = [IsAdminOrSupervisor]
 
     def post(self, request):
+        # Get data from request or use defaults
+        sender_id    = request.data.get('sender_id',    'test_sender_001')
+        source       = request.data.get('source',       'facebook')
+        page_id      = request.data.get('page_id',      'test_page_001')
+        text         = request.data.get('text',         'Hello I need help')
+        first_name   = request.data.get('first_name',   'Test')
+        last_name    = request.data.get('last_name',    'Client')
+
+        # Build a normalized message exactly like the webhook normalizer produces
         from datetime import datetime
+        message = {
+            'source':       source,
+            'external_id':  f'sim_{datetime.now().timestamp()}',
+            'sender_id':    sender_id,
+            'page_id':      page_id,
+            'text':         text,
+            'message_type': 'text',
+            'timestamp':    datetime.now(),
+            'raw':          {},
+        }
 
         try:
-            # Get values from request or use smart defaults
-            sender_id  = request.data.get('sender_id',  f'test_client_{int(datetime.now().timestamp())}')
-            source     = request.data.get('source',     'whatsapp')
-            page_id    = request.data.get('page_id',    'test_page_001')
-            text       = request.data.get('text',       'Hello I need help')
-            first_name = request.data.get('first_name', 'Test')
-            last_name  = request.data.get('last_name',  'Client')
-
-            # Validate source
-            valid_sources = ['facebook', 'instagram', 'whatsapp']
-            if source not in valid_sources:
-                return Response({
-                    'success': False,
-                    'error': f'source must be one of {valid_sources}',
-                    'message': 'Invalid source parameter'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Build normalized message
-            message = {
-                'source':       source,
-                'external_id':  f'sim_{int(datetime.now().timestamp() * 1000)}',
-                'sender_id':    sender_id,
-                'page_id':      page_id,
-                'text':         text,
-                'message_type': 'text',
-                'direction':    'inbound',
-                'timestamp':    datetime.now(),
-                'raw':          {},
-            }
-
-            # Run the full flow
+            # Run the full conversation service flow
             ConversationService.handle_incoming(message)
 
             # Update client name if provided
             from apps.clients.models import Client
             client = Client.objects.filter(sender_id=sender_id).first()
-            if client and (first_name or last_name):
+            if client:
                 client.first_name = first_name
                 client.last_name  = last_name
                 client.save(update_fields=['first_name', 'last_name'])
 
-            # Get the conversation that was just created/updated
+            # Return the created conversation
             conversation = Conversation.objects.filter(
                 client=client
-            ).order_by('-updated_at').first()
+            ).order_by('-created_at').first()
 
-            # ✅ FIXED: Return response with ALL expected fields
-            response_data = {
-                'success': True,
-                'message': 'Conversation simulated successfully',
-                'data': {
-                    'conversation_id': str(conversation.id) if conversation else None,
-                    'mongo_conv_id': conversation.mongo_conv_id if conversation else None,
-                    'client': {
-                        'id': str(client.id) if client else None,
-                        'name': f'{first_name} {last_name}',
-                        'sender_id': sender_id,
-                        'source': source,
-                    },
-                    'assigned_to': conversation.agent.email if conversation and conversation.agent else 'unassigned',
-                    'status': conversation.status if conversation else None,
-                    'message_text': text,
-                    'timestamp': datetime.now().isoformat()
-                },
-                'conversation': {
-                    'id': str(conversation.id) if conversation else None,
-                    'mongo_conv_id': conversation.mongo_conv_id if conversation else None,
-                    'status': conversation.status if conversation else None,
-                    'client_name': f'{first_name} {last_name}',
-                    'source': source
-                }
-            }
-            
-            return Response(response_data, status=status.HTTP_200_OK)
+            return Response({
+                'success':         True,
+                'conversation_id': str(conversation.id) if conversation else None,
+                'client':          f'{first_name} {last_name}',
+                'source':          source,
+                'text':            text,
+                'assigned_to':     conversation.agent.email if conversation and conversation.agent else 'unassigned',
+                'status':          conversation.status if conversation else None,
+            })
 
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.exception("Error in SimulateIncomingMessageView")
-            
-            return Response({
-                'success': False,
-                'error': str(e),
-                'message': f'Simulation failed: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
