@@ -111,37 +111,36 @@ class SimulateIncomingMessageView(APIView):
     def post(self, request):
         from datetime import datetime
 
+        # Get values from request or use smart defaults
+        sender_id  = request.data.get('sender_id',  f'test_client_{int(datetime.now().timestamp())}')
+        source     = request.data.get('source',     'whatsapp')
+        page_id    = request.data.get('page_id',    'test_page_001')
+        text       = request.data.get('text',       'Hello I need help')
+        first_name = request.data.get('first_name', 'Test')
+        last_name  = request.data.get('last_name',  'Client')
+
+        # Validate source
+        valid_sources = ['facebook', 'instagram', 'whatsapp']
+        if source not in valid_sources:
+            return Response(
+                {'error': f'source must be one of {valid_sources}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Build normalized message — exactly like the webhook normalizer produces
+        message = {
+            'source':       source,
+            'external_id':  f'sim_{int(datetime.now().timestamp() * 1000)}',
+            'sender_id':    sender_id,
+            'page_id':      page_id,
+            'text':         text,
+            'message_type': 'text',
+            'direction':    'inbound',
+            'timestamp':    datetime.now(),
+            'raw':          {},
+        }
+
         try:
-            # Get values from request or use smart defaults
-            sender_id  = request.data.get('sender_id',  f'test_client_{int(datetime.now().timestamp())}')
-            source     = request.data.get('source',     'whatsapp')
-            page_id    = request.data.get('page_id',    'test_page_001')
-            text       = request.data.get('text',       'Hello I need help')
-            first_name = request.data.get('first_name', 'Test')
-            last_name  = request.data.get('last_name',  'Client')
-
-            # Validate source
-            valid_sources = ['facebook', 'instagram', 'whatsapp']
-            if source not in valid_sources:
-                return Response({
-                    'success': False,
-                    'error': f'source must be one of {valid_sources}',
-                    'message': 'Invalid source parameter'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Build normalized message
-            message = {
-                'source':       source,
-                'external_id':  f'sim_{int(datetime.now().timestamp() * 1000)}',
-                'sender_id':    sender_id,
-                'page_id':      page_id,
-                'text':         text,
-                'message_type': 'text',
-                'direction':    'inbound',
-                'timestamp':    datetime.now(),
-                'raw':          {},
-            }
-
             # Run the full flow
             ConversationService.handle_incoming(message)
 
@@ -158,42 +157,23 @@ class SimulateIncomingMessageView(APIView):
                 client=client
             ).order_by('-updated_at').first()
 
-            # ✅ FIXED: Return response with ALL expected fields
-            response_data = {
-                'success': True,
-                'message': 'Conversation simulated successfully',
-                'data': {
-                    'conversation_id': str(conversation.id) if conversation else None,
-                    'mongo_conv_id': conversation.mongo_conv_id if conversation else None,
-                    'client': {
-                        'id': str(client.id) if client else None,
-                        'name': f'{first_name} {last_name}',
-                        'sender_id': sender_id,
-                        'source': source,
-                    },
-                    'assigned_to': conversation.agent.email if conversation and conversation.agent else 'unassigned',
-                    'status': conversation.status if conversation else None,
-                    'message_text': text,
-                    'timestamp': datetime.now().isoformat()
+            return Response({
+                'success':         True,
+                'conversation_id': str(conversation.id) if conversation else None,
+                'mongo_conv_id':   conversation.mongo_conv_id if conversation else None,
+                'client': {
+                    'id':        str(client.id) if client else None,
+                    'name':      f'{first_name} {last_name}',
+                    'sender_id': sender_id,
+                    'source':    source,
                 },
-                'conversation': {
-                    'id': str(conversation.id) if conversation else None,
-                    'mongo_conv_id': conversation.mongo_conv_id if conversation else None,
-                    'status': conversation.status if conversation else None,
-                    'client_name': f'{first_name} {last_name}',
-                    'source': source
-                }
-            }
-            
-            return Response(response_data, status=status.HTTP_200_OK)
+                'assigned_to': conversation.agent.email if conversation and conversation.agent else 'unassigned — no online agents',
+                'status':      conversation.status if conversation else None,
+                'message':     text,
+            }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.exception("Error in SimulateIncomingMessageView")
-            
-            return Response({
-                'success': False,
-                'error': str(e),
-                'message': f'Simulation failed: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
