@@ -48,7 +48,25 @@ export function ConversationDetailPage() {
       }
     },
   });
+const simulateMutation = useMutation({
+  mutationFn: () =>
+    conversationsApi.simulate({
+      text: "Hello from simulated client",
+      first_name: "Test",
+      last_name: "Client",
+    }),
 
+  onSuccess: () => {
+    // Refresh conversations list
+    qc.invalidateQueries({ queryKey: ['conversations'] });
+
+    console.log("Simulation success");
+  },
+
+  onError: (err) => {
+    console.error("Simulation failed:", err);
+  },
+});
   const resolveMutation = useMutation({
     mutationFn: () => conversationsApi.resolve(id!),
     onSuccess: () => {
@@ -102,29 +120,42 @@ export function ConversationDetailPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {isSupervisor && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setReassignOpen(true)}
-                  >
-                    <UserRoundCog size={13} />
-                    Reassign
-                  </Button>
-                )}
-                {!isResolved && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    loading={resolveMutation.isPending}
-                    onClick={() => resolveMutation.mutate()}
-                  >
-                    <CheckCheck size={13} />
-                    Resolve
-                  </Button>
-                )}
-              </div>
+<div className="flex items-center gap-2 shrink-0">
+  {/* ✅ Simulate button */}
+  {isSupervisor && (
+    <Button
+      variant="secondary"
+      size="sm"
+      loading={simulateMutation.isPending}
+      onClick={() => simulateMutation.mutate()}
+    >
+      Simulate
+    </Button>
+  )}
+
+  {isSupervisor && (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => setReassignOpen(true)}
+    >
+      <UserRoundCog size={13} />
+      Reassign
+    </Button>
+  )}
+
+  {!isResolved && (
+    <Button
+      variant="secondary"
+      size="sm"
+      loading={resolveMutation.isPending}
+      onClick={() => resolveMutation.mutate()}
+    >
+      <CheckCheck size={13} />
+      Resolve
+    </Button>
+  )}
+</div>
             </>
           )}
         </div>
