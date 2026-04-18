@@ -11,12 +11,47 @@
     padding: 0;
   }
 
+  /* ── LIGHT theme (default) ─────────────────────────── */
+  :root {
+    --page:      #FEFEFE;
+    --sidebar:   #F7F7F7;
+    --active:    #ECECEC;
+    --search:    #EFEFEF;
+    --border:    #E2E2E2;
+    --popup:     #FFFFFF;
+    --text-1:    #1a1a1a;
+    --text-2:    #4b5563;
+    --text-3:    #9ca3af;
+    --brand:     #CB1F17;
+    --brand-h:   #b01a13;
+    --brand-bg:  #CB1F1715;
+    --input-bg:  #EFEFEF;
+  }
+
+  /* ── DARK theme ────────────────────────────────────── */
+  .dark {
+    --page:      #141517;
+    --sidebar:   #1C1D20;
+    --active:    #2B2C31;
+    --search:    #2A2B33;
+    --border:    #2e3038;
+    --popup:     #2A2B33;
+    --text-1:    #e6edf3;
+    --text-2:    #8b949e;
+    --text-3:    #6e7681;
+    --brand:     #CB1F17;
+    --brand-h:   #b01a13;
+    --brand-bg:  #CB1F1720;
+    --input-bg:  #2A2B33;
+  }
+
   body {
-    background-color: #020617; /* slate-950 */
-    color: #f1f5f9;
+    background-color: var(--page);
+    color: var(--text-1);
     font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s, color 0.2s;
   }
 
   /* Scrollbar */
@@ -28,10 +63,31 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: var(--border);
     border-radius: 2px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: var(--text-3);
   }
 }
+
+/* ── Utility classes using CSS variables ─────────────────── */
+@layer utilities {
+  .bg-page     { background-color: var(--page);    }
+  .bg-sidebar  { background-color: var(--sidebar); }
+  .bg-active   { background-color: var(--active);  }
+  .bg-search   { background-color: var(--search);  }
+  .bg-popup    { background-color: var(--popup);   }
+  .bg-input    { background-color: var(--input-bg);}
+  .border-theme{ border-color: var(--border);      }
+  .text-1      { color: var(--text-1); }
+  .text-2      { color: var(--text-2); }
+  .text-3      { color: var(--text-3); }
+  .text-brand  { color: var(--brand);  }
+  .bg-brand    { background-color: var(--brand);   }
+  .bg-brand-h  { background-color: var(--brand-h); }
+  .bg-brand-bg { background-color: var(--brand-bg);}
+  .border-brand{ border-color: var(--brand);       }
+  .ring-brand  { --tw-ring-color: var(--brand);    }
+}
+
