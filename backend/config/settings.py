@@ -98,37 +98,17 @@ MONGODB_DB_NAME = env('MONGODB_DB_NAME', default='social_listening_db')
 
 REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 
-import ssl
-
-REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
-
-# Parse SSL for Upstash (rediss://)
-if REDIS_URL.startswith('rediss://'):
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [{
-                    'address': REDIS_URL,
-                    'ssl': True,
-                    'ssl_cert_reqs': ssl.CERT_NONE,
-                }],
-            },
-        }
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [REDIS_URL],
+        },
     }
-else:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [REDIS_URL],
-            },
-        }
-    }
+}
 
 CELERY_BROKER_URL     = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
-
 CORS_ALLOW_ALL_ORIGINS = True
 
 REST_FRAMEWORK = {
