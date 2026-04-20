@@ -12,15 +12,11 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
-  const savedTheme = (localStorage.getItem('theme') as Theme) ?? 'system';
-  // Apply on init
-  if (typeof document !== 'undefined') applyTheme(savedTheme);
 
   return {
     user:         null,
     accessToken:  localStorage.getItem('access_token'),
     refreshToken: localStorage.getItem('refresh_token'),
-    theme:        savedTheme,
 
     setTokens: (access, refresh) => {
       localStorage.setItem('access_token', access);
@@ -37,11 +33,5 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     isAuthenticated: () => !!get().accessToken,
-
-    setTheme: (t: Theme) => {
-      localStorage.setItem('theme', t);
-      applyTheme(t);
-      set({ theme: t });
-    },
   };
 });

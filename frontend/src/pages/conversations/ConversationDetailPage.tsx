@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCheck, UserRoundCog, Send } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft,Send } from 'lucide-react';
 import { conversationsApi } from '../../api/services';
 import { useAuthStore } from '../../store/authStore';
 import { useConversationSocket } from '../../hooks/useConversationSocket';
 import { Avatar } from '../../components/ui/Avatar';
-import { Button } from '../../components/ui/Button';
 import { PlatformBadge } from '../../components/ui/PlatformBadge';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ClientPanel } from '../../components/conversations/ClientPanel';
@@ -48,32 +47,6 @@ export function ConversationDetailPage() {
       }
     },
   });
-const simulateMutation = useMutation({
-  mutationFn: () =>
-    conversationsApi.simulate({
-      text: "Hello from simulated client",
-      first_name: "Test",
-      last_name: "Client",
-    }),
-
-  onSuccess: () => {
-    // Refresh conversations list
-    qc.invalidateQueries({ queryKey: ['conversations'] });
-
-    console.log("Simulation success");
-  },
-
-  onError: (err) => {
-    console.error("Simulation failed:", err);
-  },
-});
-  const resolveMutation = useMutation({
-    mutationFn: () => conversationsApi.resolve(id!),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['conversation', id] });
-      qc.invalidateQueries({ queryKey: ['conversations'] });
-    },
-  });
 
   const handleSendReply = () => {
     const text = replyText.trim();
@@ -88,7 +61,6 @@ const simulateMutation = useMutation({
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSendReply();
   };
 
-  const isSupervisor = user?.role === 'admin' || user?.role === 'supervisor';
   const isResolved = conversation?.status === 'resolved' || conversation?.status === 'closed';
   const clientName = conversation ? (fullName(conversation.client) || conversation.client.sender_id) : '…';
   const agentName  = conversation?.agent ? fullName(conversation.agent) : 'Unassigned';
