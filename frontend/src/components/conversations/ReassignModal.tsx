@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Avatar } from '../ui/Avatar';
 
-const statusDot = { online: 'bg-emerald-500', busy: 'bg-amber-500', offline: 'bg-slate-500' };
+const statusDot = { online: 'bg-emerald-500', busy: 'bg-amber-500', offline: 'bg-gray-400' };
 
 interface ReassignModalProps {
   conversationId: string;
@@ -34,28 +34,33 @@ export function ReassignModal({ conversationId, open, onClose }: ReassignModalPr
 
   return (
     <Modal open={open} onClose={onClose} title="Reassign Conversation">
-      <p className="text-xs text-slate-400 mb-4">Select an agent to reassign this conversation to.</p>
+      <p className="text-xs text-2 mb-4">Select an agent to reassign this conversation to.</p>
       <div className="space-y-1 max-h-64 overflow-y-auto mb-4">
         {agents.map(agent => (
           <button
             key={agent.id}
             onClick={() => setSelected(agent.id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              selected === agent.id ? 'bg-blue-600/20 border border-blue-500/40' : 'hover:bg-slate-800'
+              selected === agent.id
+                ? 'bg-brand-bg border border-brand'
+                : 'hover:bg-active border border-transparent'
             }`}
           >
             <div className="relative">
               <Avatar name={agent.full_name || agent.email} size="sm" />
-              <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ring-slate-900 ${statusDot[agent.status ?? 'offline']}`} />
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ${statusDot[agent.status ?? 'offline']}`}
+                style={{ '--tw-ring-color': 'var(--popup)' } as React.CSSProperties}
+              />
             </div>
             <div className="flex-1 text-left min-w-0">
-              <p className="text-sm text-slate-200 truncate">{agent.full_name || agent.email}</p>
-              <p className="text-xs text-slate-500">{agent.open_conversations} open</p>
+              <p className="text-sm text-1 truncate">{agent.full_name || agent.email}</p>
+              <p className="text-xs text-3">{agent.open_conversations} open</p>
             </div>
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-              agent.status === 'online' ? 'bg-emerald-500/15 text-emerald-400' :
-              agent.status === 'busy'   ? 'bg-amber-500/15 text-amber-400' :
-                                          'bg-slate-700 text-slate-400'
+              agent.status === 'online' ? 'bg-emerald-500/15 text-emerald-500' :
+              agent.status === 'busy'   ? 'bg-amber-500/15 text-amber-500'     :
+                                          'bg-active text-3'
             }`}>
               {agent.status}
             </span>

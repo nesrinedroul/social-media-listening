@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft,Send } from 'lucide-react';
+import { ArrowLeft, Send } from 'lucide-react';
 import { conversationsApi } from '../../api/services';
 import { useAuthStore } from '../../store/authStore';
 import { useConversationSocket } from '../../hooks/useConversationSocket';
@@ -34,12 +34,10 @@ export function ConversationDetailPage() {
     enabled: !!id,
   });
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  // Real-time: refresh messages when a new_message event arrives for this conv
   const { sendReply } = useConversationSocket({
     onEvent: (event: WsEvent) => {
       if (event.type === 'new_message' && event.conversation_id === id) {
@@ -53,7 +51,6 @@ export function ConversationDetailPage() {
     if (!text || !id) return;
     sendReply(id, text);
     setReplyText('');
-    // Optimistically refetch after a short delay
     setTimeout(() => qc.invalidateQueries({ queryKey: ['messages', id] }), 500);
   };
 
@@ -61,19 +58,19 @@ export function ConversationDetailPage() {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSendReply();
   };
 
-  const isResolved = conversation?.status === 'resolved' || conversation?.status === 'closed';
-  const clientName = conversation ? (fullName(conversation.client) || conversation.client.sender_id) : '…';
-  const agentName  = conversation?.agent ? fullName(conversation.agent) : 'Unassigned';
+  const isResolved   = conversation?.status === 'resolved' || conversation?.status === 'closed';
+  const clientName   = conversation ? (fullName(conversation.client) || conversation.client.sender_id) : '…';
+  const agentName    = conversation?.agent ? fullName(conversation.agent) : 'Unassigned';
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full bg-page">
       {/* Main chat area */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800 shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-theme shrink-0">
           <button
             onClick={() => navigate('/conversations')}
-            className="text-slate-400 hover:text-slate-200 transition-colors"
+            className="text-3 hover:text-1 transition-colors"
           >
             <ArrowLeft size={16} />
           </button>
@@ -83,15 +80,12 @@ export function ConversationDetailPage() {
               <Avatar name={clientName} size="md" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-slate-100 truncate">{clientName}</p>
-                  {conversation && <PlatformBadge platform={conversation.channel.platform} />}
-                  {conversation && <StatusBadge status={conversation.status} />}
+                  <p className="text-sm font-semibold text-1 truncate">{clientName}</p>
+                  <PlatformBadge platform={conversation.channel.platform} />
+                  <StatusBadge status={conversation.status} />
                 </div>
-                <p className="text-xs text-slate-500 truncate">
-                  Agent: {agentName}
-                </p>
+                <p className="text-xs text-3 truncate">Agent: {agentName}</p>
               </div>
-
             </>
           )}
         </div>
@@ -99,13 +93,13 @@ export function ConversationDetailPage() {
         {/* Messages thread */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {msgsLoading && (
-            <div className="flex items-center justify-center py-8 text-slate-500 text-sm">
+            <div className="flex items-center justify-center py-8 text-3 text-sm">
               Loading messages…
             </div>
           )}
 
           {!msgsLoading && messages.length === 0 && (
-            <div className="flex items-center justify-center py-8 text-slate-600 text-sm">
+            <div className="flex items-center justify-center py-8 text-3 text-sm">
               No messages yet.
             </div>
           )}
@@ -117,7 +111,8 @@ export function ConversationDetailPage() {
                 {!isOutbound && conversation && (
                   <Avatar name={clientName} size="sm" />
                 )}
-                <div className={`max-w-[72%] group`}>
+                <div className="max-w-[72%] group">
+                  {/* ── Chat bubble colors intentionally unchanged ── */}
                   <div
                     className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                       isOutbound
@@ -127,7 +122,7 @@ export function ConversationDetailPage() {
                   >
                     {msg.text || <span className="italic text-slate-400">[{msg.type}]</span>}
                   </div>
-                  <p className={`text-[10px] text-slate-600 mt-1 ${isOutbound ? 'text-right' : 'text-left'}`}>
+                  <p className={`text-[10px] text-3 mt-1 ${isOutbound ? 'text-right' : 'text-left'}`}>
                     {formatTime(msg.timestamp)}
                   </p>
                 </div>
@@ -142,31 +137,31 @@ export function ConversationDetailPage() {
 
         {/* Reply box */}
         {!isResolved && (
-          <div className="border-t border-slate-800 p-3 shrink-0">
-            <div className="flex gap-2 items-end bg-slate-800 rounded-xl px-3 py-2">
+          <div className="border-t border-theme p-3 shrink-0">
+            <div className="flex gap-2 items-end bg-input rounded-xl px-3 py-2">
               <textarea
                 value={replyText}
                 onChange={e => setReplyText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Write a reply… (⌘↵ to send)"
                 rows={2}
-                className="flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 resize-none outline-none"
+                className="flex-1 bg-transparent text-sm text-1 placeholder:text-3 resize-none outline-none"
               />
               <button
                 onClick={handleSendReply}
                 disabled={!replyText.trim()}
-                className="shrink-0 text-blue-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors pb-0.5"
+                className="shrink-0 text-brand hover:text-brand-h disabled:text-3 disabled:cursor-not-allowed transition-colors pb-0.5"
               >
                 <Send size={16} />
               </button>
             </div>
-            <p className="text-[10px] text-slate-600 mt-1.5 text-right">⌘↵ to send</p>
+            <p className="text-[10px] text-3 mt-1.5 text-right">⌘↵ to send</p>
           </div>
         )}
 
         {isResolved && (
-          <div className="border-t border-slate-800 p-4 text-center">
-            <p className="text-xs text-slate-500">This conversation has been {conversation?.status}.</p>
+          <div className="border-t border-theme p-4 text-center">
+            <p className="text-xs text-3">This conversation has been {conversation?.status}.</p>
           </div>
         )}
       </div>

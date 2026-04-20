@@ -11,7 +11,6 @@ export function AppShell() {
 
   const handleWsEvent = (event: WsEvent) => {
     if (event.type === 'new_conversation' || event.type === 'new_message') {
-      // Invalidate conversation list so it refreshes
       qc.invalidateQueries({ queryKey: ['conversations'] });
       if (event.type === 'new_message') {
         qc.invalidateQueries({ queryKey: ['messages', event.conversation_id] });
@@ -22,7 +21,7 @@ export function AppShell() {
   useConversationSocket({ onEvent: handleWsEvent, enabled: !!user });
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-page text-1 overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-hidden">
         <Outlet />

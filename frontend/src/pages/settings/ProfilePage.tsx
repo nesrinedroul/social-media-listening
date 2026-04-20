@@ -8,10 +8,10 @@ import { Input } from '../../components/ui/Input';
 import { fullName } from '../../utils/utils';
 import type { UserStatus } from '../../types';
 
-const statusOptions: { value: UserStatus; label: string; cls: string }[] = [
-  { value: 'online',  label: 'Online',  cls: 'border-emerald-500 text-emerald-400 bg-emerald-500/10' },
-  { value: 'busy',    label: 'Busy',    cls: 'border-amber-500  text-amber-400  bg-amber-500/10'  },
-  { value: 'offline', label: 'Offline', cls: 'border-slate-600  text-slate-400  bg-slate-800'     },
+const statusOptions: { value: UserStatus; label: string; activeCls: string }[] = [
+  { value: 'online',  label: 'Online',  activeCls: 'border-emerald-500 text-emerald-500 bg-emerald-500/10' },
+  { value: 'busy',    label: 'Busy',    activeCls: 'border-amber-500  text-amber-500  bg-amber-500/10'     },
+  { value: 'offline', label: 'Offline', activeCls: 'border-theme      text-3          bg-active'           },
 ];
 
 export function ProfilePage() {
@@ -44,21 +44,21 @@ export function ProfilePage() {
   const name = fullName(user);
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto bg-page">
       <div className="max-w-xl mx-auto px-5 py-8 space-y-8">
         {/* Profile header */}
         <div className="flex items-center gap-4">
           <Avatar name={name} size="lg" status={user.status} />
           <div>
-            <h1 className="font-semibold text-slate-100">{name}</h1>
-            <p className="text-sm text-slate-400">{user.email}</p>
-            <span className="text-xs text-slate-500 capitalize">{user.role}</span>
+            <h1 className="font-semibold text-1">{name}</h1>
+            <p className="text-sm text-2">{user.email}</p>
+            <span className="text-xs text-3 capitalize">{user.role}</span>
           </div>
         </div>
 
         {/* General info */}
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-200">General settings</h2>
+        <section className="bg-sidebar border border-theme rounded-xl p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-1">General settings</h2>
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="First name"
@@ -73,7 +73,7 @@ export function ProfilePage() {
           </div>
           <Input label="Email" value={user.email} disabled className="opacity-50 cursor-not-allowed" />
           <div className="flex items-center justify-between pt-1">
-            {saved && <p className="text-xs text-emerald-400">Changes saved!</p>}
+            {saved && <p className="text-xs text-emerald-500">Changes saved!</p>}
             <div className="ml-auto">
               <Button
                 size="sm"
@@ -88,10 +88,10 @@ export function ProfilePage() {
 
         {/* Status */}
         {user.role === 'agent' && (
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-slate-200 mb-3">Availability</h2>
-            <p className="text-xs text-slate-400 mb-4">
-              Your status is also automatically managed by your WebSocket connection.
+          <section className="bg-sidebar border border-theme rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-1 mb-3">Availability</h2>
+            <p className="text-xs text-2 mb-4">
+              Your status is automatically managed by your WebSocket connection.
               Use this to manually override it.
             </p>
             <div className="flex gap-2">
@@ -102,8 +102,8 @@ export function ProfilePage() {
                   disabled={statusMutation.isPending}
                   className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
                     user.status === opt.value
-                      ? opt.cls + ' border-opacity-100'
-                      : 'border-slate-700 text-slate-500 bg-slate-800 hover:border-slate-600'
+                      ? opt.activeCls
+                      : 'border-theme text-3 bg-active hover:border-brand hover:text-1'
                   }`}
                 >
                   {opt.label}
@@ -114,20 +114,20 @@ export function ProfilePage() {
         )}
 
         {/* Account info */}
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-3">Account info</h2>
+        <section className="bg-sidebar border border-theme rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-1 mb-3">Account info</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-400">Account ID</span>
-              <span className="text-slate-200 font-mono text-xs">{user.id}</span>
+              <span className="text-2">Account ID</span>
+              <span className="text-1 font-mono text-xs">{user.id}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Role</span>
-              <span className="text-slate-200 capitalize">{user.role}</span>
+              <span className="text-2">Role</span>
+              <span className="text-1 capitalize">{user.role}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Open conversations</span>
-              <span className="text-slate-200">{user.open_conversations}</span>
+              <span className="text-2">Open conversations</span>
+              <span className="text-1">{user.open_conversations}</span>
             </div>
           </div>
         </section>
