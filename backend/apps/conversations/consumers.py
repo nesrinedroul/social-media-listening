@@ -4,6 +4,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
+from urllib.parse import parse_qs
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,15 +13,27 @@ class ConversationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         logger.info(f"WebSocket connect attempt: {self.scope['path']}")
         
-        # Get user from scope (set by AuthMiddlewareStack)
-        self.user = self.scope.get('user')
+        # Extract token from query string
+        query_string = self.scope['query_string'].decode()
+        query_params = parse_qs(query_string)
+        token_list = query_params.get('token', [])
+        token = token_list[0] if token_list else None
         
-        if not self.user or not self.user.is_authenticated:
-            logger.warning(f"WebSocket rejected: user not authenticated")
+        if not token:
+            logger.warning("No token provided in WebSocket connection")
             await self.close()
             return
-
-        logger.info(f"WebSocket authenticated for user: {self.user.email} (role: {self.user.role})")
+        
+        # Authenticate user with token
+        user = await self.get_user_from_token(token)
+        
+        if not user or not user.is_authenticated:
+            logger.warning(f"WebSocket rejected: invalid token")
+            await self.close()
+            return
+        
+        self.user = user
+        logger.info(f"WebSocket authenticated for user: {user.email} (role: {user.role})")
         
         self.group_name = f'user_{self.user.id}'
         
@@ -62,7 +75,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             
             if message_type == 'heartbeat':
                 await self._update_last_seen()
-                # Send heartbeat response
                 await self.send(text_data=json.dumps({
                     'type': 'heartbeat_ack',
                     'timestamp': timezone.now().isoformat()
@@ -74,16 +86,42 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 
                 if conversation_id and text:
                     await self._handle_reply(conversation_id, text)
-                else:
-                    logger.warning(f"Missing conversation_id or text in send_reply")
                     
-            else:
-                logger.warning(f"Unknown message type: {message_type}")
+            elif message_type == 'test':
+                await self.send(text_data=json.dumps({
+                    'type': 'test_response',
+                    'message': 'WebSocket is working!'
+                }))
                 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON received: {e}")
         except Exception as e:
             logger.error(f"Error processing WebSocket message: {e}")
+
+    @database_sync_to_async
+    def get_user_from_token(self, token):
+        """Validate JWT token and return user"""
+        from django.contrib.auth import get_user_model
+        from rest_framework_simplejwt.tokens import AccessToken
+        from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+        
+        User = get_user_model()
+        
+        try:
+            # Decode the token
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+            
+            # Get the user
+            user = User.objects.get(id=user_id)
+            return user
+            
+        except (InvalidToken, TokenError) as e:
+            logger.error(f"Invalid token: {e}")
+            return None
+        except User.DoesNotExist:
+            logger.error(f"User not found for token")
+            return None
 
     @database_sync_to_async
     def _set_status(self, status: str):
