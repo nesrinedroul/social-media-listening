@@ -54,7 +54,9 @@ export const clientsApi = {
 
 export const conversationsApi = {
   list: (status?: ConversationStatus) =>
-    api.get<Conversation[]>('/api/conversations/', { params: status ? { status } : {} }),
+    api.get<Conversation[]>('/api/conversations/', {
+      params: status ? { status } : {}
+    }),
 
   get: (id: string) =>
     api.get<Conversation>(`/api/conversations/${id}/`),
@@ -64,16 +66,9 @@ export const conversationsApi = {
 
   resolve: (id: string) =>
     api.post(`/api/conversations/${id}/resolve/`),
-  simulate: (data?: {
-  sender_id?: string;
-  source?: 'facebook' | 'instagram' | 'whatsapp';
-  page_id?: string;
-  text?: string;
-  first_name?: string;
-  last_name?: string;
-}) =>
-  api.post('/api/conversations/simulate/', data ?? {}),
-  
+
   reassign: (id: string, agent_id: string) =>
     api.post(`/api/conversations/${id}/reassign/`, { agent_id }),
+
+  
 };

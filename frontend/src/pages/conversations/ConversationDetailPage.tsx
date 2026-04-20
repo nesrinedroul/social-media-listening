@@ -120,42 +120,6 @@ const simulateMutation = useMutation({
                 </p>
               </div>
 
-<div className="flex items-center gap-2 shrink-0">
-  {/* ✅ Simulate button */}
-  {isSupervisor && (
-    <Button
-      variant="secondary"
-      size="sm"
-      loading={simulateMutation.isPending}
-      onClick={() => simulateMutation.mutate()}
-    >
-      Simulate
-    </Button>
-  )}
-
-  {isSupervisor && (
-    <Button
-      variant="secondary"
-      size="sm"
-      onClick={() => setReassignOpen(true)}
-    >
-      <UserRoundCog size={13} />
-      Reassign
-    </Button>
-  )}
-
-  {!isResolved && (
-    <Button
-      variant="secondary"
-      size="sm"
-      loading={resolveMutation.isPending}
-      onClick={() => resolveMutation.mutate()}
-    >
-      <CheckCheck size={13} />
-      Resolve
-    </Button>
-  )}
-</div>
             </>
           )}
         </div>
