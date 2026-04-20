@@ -4,7 +4,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate"
-    startCommand: "daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
+    startCommand: "daphne -b 0.0.0.0 -p 8000 config.asgi:application"
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.0
