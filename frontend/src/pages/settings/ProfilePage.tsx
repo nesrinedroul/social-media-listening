@@ -1,3 +1,4 @@
+// pages/settings/ProfilePage.tsx
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
@@ -8,21 +9,22 @@ import { Input } from '../../components/ui/Input';
 import { fullName } from '../../utils/utils';
 import type { UserStatus } from '../../types';
 
-const statusOptions: { value: UserStatus; label: string; activeCls: string }[] = [
+// Use explicit, static class strings to ensure Tailwind includes them.
+const statusOptions: { value: UserStatus; label: string; activeClasses: string }[] = [
   {
     value: 'online',
     label: 'Online',
-    activeCls: 'border-emerald-500 text-emerald-500 bg-emerald-500/10',
+    activeClasses: 'border-emerald-500 text-emerald-500 bg-emerald-500/10',
   },
   {
     value: 'busy',
     label: 'Busy',
-    activeCls: 'border-amber-500 text-amber-500 bg-amber-500/10',
+    activeClasses: 'border-amber-500 text-amber-500 bg-amber-500/10',
   },
   {
     value: 'offline',
     label: 'Offline',
-    activeCls: 'border-gray-400 text-gray-400 bg-gray-400/10',
+    activeClasses: 'border-gray-400 text-gray-400 bg-gray-400/10',
   },
 ];
 
@@ -37,6 +39,7 @@ export function ProfilePage() {
   const isAdmin = user?.role === 'admin';
   const isAgent = user?.role === 'agent';
 
+  // Update user name mutation (admin only)
   const updateMutation = useMutation({
     mutationFn: () =>
       authApi.updateUser(user!.id, { first_name: firstName, last_name: lastName }),
@@ -47,11 +50,17 @@ export function ProfilePage() {
     },
   });
 
+  // Update status mutation
   const statusMutation = useMutation({
     mutationFn: (status: UserStatus) => authApi.updateStatus(status),
     onSuccess: ({ data }) => {
+      // Update the global user object with fresh data from server
       setUser(data);
+      // Invalidate agents list in case it's being displayed elsewhere
       qc.invalidateQueries({ queryKey: ['agents'] });
+    },
+    onError: (error) => {
+      console.error('Failed to update status:', error);
     },
   });
 
@@ -64,7 +73,12 @@ export function ProfilePage() {
       <div className="max-w-xl mx-auto px-5 py-8 space-y-8">
         {/* Profile header */}
         <div className="flex items-center gap-4">
-          <Avatar name={name} size="lg" status={user.status} key={user.status} />
+          <Avatar
+            name={name}
+            size="lg"
+            status={user.status}
+            key={`${user.id}-${user.status}`} // Force remount on status change
+          />
           <div>
             <h1 className="font-semibold text-1">{name}</h1>
             <p className="text-sm text-2">{user.email}</p>
@@ -122,22 +136,25 @@ export function ProfilePage() {
               manually override it.
             </p>
             <div className="flex gap-2">
-              {statusOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => statusMutation.mutate(opt.value)}
-                  disabled={statusMutation.isPending}
-                  className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
-                    user.status === opt.value
-                      ? opt.activeCls
-                      : 'border-active text-3 bg-active hover:border-brand hover:text-1'
-                  }`}
-                >
-                  {statusMutation.isPending && statusMutation.variables === opt.value
-                    ? '...'
-                    : opt.label}
-                </button>
-              ))}
+              {statusOptions.map((opt) => {
+                const isActive = user.status === opt.value;
+                const isLoading = statusMutation.isPending && statusMutation.variables === opt.value;
+
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => statusMutation.mutate(opt.value)}
+                    disabled={statusMutation.isPending}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                      isActive
+                        ? opt.activeClasses
+                        : 'border-active text-3 bg-active hover:border-brand hover:text-1'
+                    }`}
+                  >
+                    {isLoading ? '...' : opt.label}
+                  </button>
+                );
+              })}
             </div>
           </section>
         )}
