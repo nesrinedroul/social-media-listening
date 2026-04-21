@@ -131,3 +131,7 @@ TIME_ZONE          = 'UTC'
 USE_TZ             = True
 STATIC_ROOT  = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+CSRF_TRUSTED_ORIGINS = [
+    'https://social-media-listening-xgcr.onrender.com',
+    'http://localhost:8000',
+]
