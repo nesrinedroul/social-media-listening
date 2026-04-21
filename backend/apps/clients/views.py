@@ -6,7 +6,7 @@ from apps.accounts.permissions import IsAgentOrSupervisor
 
 class ClientListView(generics.ListAPIView):
     serializer_class   = ClientSerializer
-    permission_classes = [IsAgentOrSupervisor]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         search = self.request.query_params.get('search')
@@ -27,5 +27,5 @@ class ClientListView(generics.ListAPIView):
 class ClientDetailView(generics.RetrieveUpdateAPIView):
     """Agent updates client info (name, phone, email)"""
     serializer_class   = ClientSerializer
-    permission_classes = [IsAgentOrSupervisor]
+    permission_classes = [permissions.IsAuthenticated]
     queryset           = Client.objects.all()
