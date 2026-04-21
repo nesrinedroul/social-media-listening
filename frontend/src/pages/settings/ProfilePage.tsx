@@ -18,8 +18,8 @@ export function ProfilePage() {
   const { user, setUser } = useAuthStore();
   const qc = useQueryClient();
 
-  const [firstName, setFirstName] = useState(user?.first_name ?? '');
-  const [lastName,  setLastName]  = useState(user?.last_name  ?? '');
+  const [firstName] = useState(user?.first_name ?? '');
+  const [lastName]  = useState(user?.last_name  ?? '');
   const [saved, setSaved] = useState(false);
 
   const updateMutation = useMutation({
@@ -62,13 +62,13 @@ export function ProfilePage() {
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="First name"
-              value={firstName}
-              onChange={e => setFirstName(e.target.value)}
+              value={user.first_name}
+              disabled className="opacity-50 cursor-not-allowed"
             />
             <Input
               label="Last name"
-              value={lastName}
-              onChange={e => setLastName(e.target.value)}
+              value={user.last_name}
+              disabled className="opacity-50 cursor-not-allowed"
             />
           </div>
           <Input label="Email" value={user.email} disabled className="opacity-50 cursor-not-allowed" />
