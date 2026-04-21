@@ -43,16 +43,22 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         
         logger.info(f"WebSocket accepted: {self.channel_name}")
         
-        # Set agent status to online if they're an agent
+        # ✅ FIX: Only set status to online if user is not manually set to busy
         if self.user.role == 'agent':
-            await self._set_status('online')
+            current_status = await self._get_status()
+            # Don't override if user manually set status to 'busy'
+            if current_status != 'busy':
+                await self._set_status('online')
+            else:
+                logger.info(f"User {user.email} status is 'busy', not overriding")
         
         # Send confirmation to client
         await self.send(text_data=json.dumps({
             'type': 'connection_established',
             'message': 'Connected successfully',
             'user_id': str(self.user.id),
-            'role': self.user.role
+            'role': self.user.role,
+            'status': await self._get_status()
         }))
 
     async def disconnect(self, close_code):
@@ -60,7 +66,12 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         
         if hasattr(self, 'user') and self.user and self.user.is_authenticated:
             if self.user.role == 'agent':
-                await self._set_status('offline')
+                # ✅ FIX: Only set offline if not manually set to busy
+                current_status = await self._get_status()
+                if current_status != 'busy':
+                    await self._set_status('offline')
+                else:
+                    logger.info(f"User {self.user.email} status is 'busy', not auto-setting offline")
         
         if hasattr(self, 'group_name'):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
@@ -108,20 +119,24 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         User = get_user_model()
         
         try:
-            # Decode the token
             access_token = AccessToken(token)
             user_id = access_token['user_id']
-            
-            # Get the user
             user = User.objects.get(id=user_id)
             return user
-            
-        except (InvalidToken, TokenError) as e:
-            logger.error(f"Invalid token: {e}")
+        except (InvalidToken, TokenError, User.DoesNotExist) as e:
+            logger.error(f"Token validation error: {e}")
             return None
-        except User.DoesNotExist:
-            logger.error(f"User not found for token")
-            return None
+
+    @database_sync_to_async
+    def _get_status(self):
+        """Get current user status"""
+        from apps.accounts.models import User
+        try:
+            user = User.objects.get(pk=self.user.pk)
+            return user.status
+        except Exception as e:
+            logger.error(f"Failed to get status: {e}")
+            return 'offline'
 
     @database_sync_to_async
     def _set_status(self, status: str):
