@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Filter } from 'lucide-react';
 import { conversationsApi } from '../../api/services';
 import type { ConversationStatus } from '../../types';
 import { Avatar } from '../../components/ui/Avatar';
@@ -37,9 +36,6 @@ export function ConversationsPage() {
           <h1 className="font-semibold text-1">Conversations</h1>
           <StatusBadge status={activeTab ?? 'open'} />
         </div>
-        <button className="text-3 hover:text-1 transition-colors">
-          <Filter size={16} />
-        </button>
       </div>
 
       {/* Tabs */}
@@ -69,9 +65,6 @@ export function ConversationsPage() {
 
         {!isLoading && conversations.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-3 gap-3">
-            <div className="w-12 h-12 rounded-full bg-active flex items-center justify-center">
-              <Filter size={20} className="text-3" />
-            </div>
             <p className="text-sm">There are no active conversations in this group.</p>
           </div>
         )}
