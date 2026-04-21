@@ -42,3 +42,44 @@ class MetaWebhookView(View):
             hashlib.sha256
         ).hexdigest()
         return hmac.compare_digest(expected, signature[7:])
+    
+@method_decorator(csrf_exempt, name='dispatch')  
+class EmailWebhookView(View):
+    """
+    Receives inbound emails from Postmark.
+    Postmark POSTs JSON to this endpoint when
+    someone sends an email to your inbound address.
+    """
+
+    def post(self, request):
+        import json
+        from .email_handler import normalize_postmark_payload
+        from apps.conversations.services import ConversationService
+        from apps.clients.models import Client
+
+        try:
+            payload = json.loads(request.body)
+            message = normalize_postmark_payload(payload)
+
+            # Run full conversation flow
+            ConversationService.handle_incoming(message)
+
+            # Update client name from email sender
+            client = Client.objects.filter(
+                sender_id=message['sender_id']
+            ).first()
+
+            if client:
+                if message.get('first_name') and not client.first_name:
+                    client.first_name = message['first_name']
+                if message.get('last_name') and not client.last_name:
+                    client.last_name = message['last_name']
+                if message.get('sender_email') and not client.email:
+                    client.email = message['sender_email']
+                client.save()
+
+            return HttpResponse('OK', status=200)
+
+        except Exception as e:
+            print(f'Email webhook error: {e}')
+            return HttpResponse('Error', status=500)

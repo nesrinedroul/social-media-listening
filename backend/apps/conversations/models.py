@@ -10,6 +10,7 @@ class Channel(models.Model):
         FACEBOOK  = 'facebook',  'Facebook'
         INSTAGRAM = 'instagram', 'Instagram'
         WHATSAPP  = 'whatsapp',  'WhatsApp'
+        EMAIL     = 'email',     'Email'
 
     id        = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     platform  = models.CharField(max_length=20, choices=Platform.choices)

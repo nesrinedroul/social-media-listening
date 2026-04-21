@@ -8,6 +8,7 @@ class Client(models.Model):
         FACEBOOK  = 'facebook',  'Facebook'
         INSTAGRAM = 'instagram', 'Instagram'
         WHATSAPP  = 'whatsapp',  'WhatsApp'
+        EMAIL     = 'email',     'Email' 
 
     id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sender_id  = models.CharField(max_length=100, unique=True)
