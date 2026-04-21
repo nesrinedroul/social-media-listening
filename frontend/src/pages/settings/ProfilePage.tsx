@@ -62,12 +62,12 @@ export function ProfilePage() {
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="First name"
-              value={firstName}
+              value={user.first_name}
               onChange={e => setFirstName(e.target.value)}
             />
             <Input
               label="Last name"
-              value={lastName}
+              value={user.last_name}
               onChange={e => setLastName(e.target.value)}
             />
           </div>
