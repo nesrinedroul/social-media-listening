@@ -34,7 +34,13 @@ export function ConversationsPage() {
       <div className="flex items-center justify-between px-5 py-3 border-b border-theme">
         <div className="flex items-center gap-3">
           <h1 className="font-semibold text-1">Conversations</h1>
-          <StatusBadge status={activeTab ?? 'open'} />
+          {activeTab ? (
+            <StatusBadge status={activeTab} />
+          ) : (
+            <span className="text-xs font-medium text-3 bg-active px-4 py-1 rounded-full">
+              All
+            </span>
+          )}
         </div>
       </div>
 
