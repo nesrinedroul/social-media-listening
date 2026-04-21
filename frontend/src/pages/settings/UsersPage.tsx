@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Search } from 'lucide-react';
+import { UserPlus, Search, Edit } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,9 +10,10 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { fullName, timeAgo } from '../../utils/utils';
-import type { Role } from '../../types';
+import type { Role, User } from '../../types';
 
-const schema = z.object({
+// Schema for adding new user 
+const addUserSchema = z.object({
   email:      z.string().email(),
   password:   z.string().min(8, 'Min 8 characters'),
   password2:  z.string(),
@@ -22,7 +23,14 @@ const schema = z.object({
 }).refine(d => d.password === d.password2, {
   message: 'Passwords do not match', path: ['password2'],
 });
-type FormData = z.infer<typeof schema>;
+type AddUserFormData = z.infer<typeof addUserSchema>;
+
+// Schema for editing user 
+const editUserSchema = z.object({
+  first_name: z.string().optional(),
+  last_name:  z.string().optional(),
+});
+type EditUserFormData = z.infer<typeof editUserSchema>;
 
 const roleBadge: Record<Role, string> = {
   admin:      'bg-brand-bg text-brand',
@@ -35,6 +43,8 @@ export function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const [deactivateUserId, setDeactivateUserId] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users', roleFilter],
@@ -49,16 +59,20 @@ export function UsersPage() {
 
   const deactivateMutation = useMutation({
     mutationFn: (id: string) => authApi.updateUser(id, { is_active: false }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      setDeactivateUserId(null);
+    },
   });
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
-    resolver: zodResolver(schema),
+  // Add user form
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<AddUserFormData>({
+    resolver: zodResolver(addUserSchema),
     defaultValues: { role: 'agent' },
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: FormData) => authApi.register({
+    mutationFn: (data: AddUserFormData) => authApi.register({
       ...data,
       first_name: data.first_name ?? '',
       last_name:  data.last_name  ?? '',
@@ -69,6 +83,31 @@ export function UsersPage() {
       reset();
     },
   });
+
+  // Edit user form
+  const { register: registerEdit, handleSubmit: handleSubmitEdit, reset: resetEdit, setValue, formState: { isSubmitting: editSubmitting } } = useForm<EditUserFormData>({
+    resolver: zodResolver(editUserSchema),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: EditUserFormData }) => authApi.updateUser(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] });
+      setEditingUser(null);
+      resetEdit();
+    },
+  });
+
+  const openEditModal = (user: User) => {
+    setEditingUser(user);
+    setValue('first_name', user.first_name);
+    setValue('last_name', user.last_name);
+  };
+
+  const handleEditSubmit = (data: EditUserFormData) => {
+    if (!editingUser) return;
+    updateMutation.mutate({ id: editingUser.id, data });
+  };
 
   return (
     <div className="flex flex-col h-full bg-page">
@@ -125,17 +164,25 @@ export function UsersPage() {
               </div>
               <p className="text-xs text-3 truncate">{u.email}</p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs text-3">Joined {timeAgo(u.created_at)}</span>
               {u.is_active && (
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => deactivateMutation.mutate(u.id)}
-                  loading={deactivateMutation.isPending}
-                >
-                  Deactivate
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditModal(u)}
+                  >
+                    <Edit size={13} />
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setDeactivateUserId(u.id)}
+                  >
+                    Deactivate
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -177,6 +224,74 @@ export function UsersPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Edit user modal */}
+      <Modal
+        open={!!editingUser}
+        onClose={() => { setEditingUser(null); resetEdit(); }}
+        title="Edit user"
+      >
+        <form onSubmit={handleSubmitEdit(handleEditSubmit)} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="First name" placeholder="Jane" {...registerEdit('first_name')} />
+            <Input label="Last name"  placeholder="Doe"  {...registerEdit('last_name')} />
+          </div>
+          <Input
+            label="Email"
+            type="email"
+            value={editingUser?.email ?? ''}
+            disabled
+            className="opacity-60 cursor-not-allowed"
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-2 uppercase tracking-wide">Role</label>
+            <input
+              type="text"
+              value={editingUser?.role ?? ''}
+              disabled
+              className="bg-input border border-theme rounded-lg px-3 py-2 text-sm text-1 opacity-60 cursor-not-allowed outline-none capitalize"
+            />
+            <p className="text-[10px] text-3 mt-0.5">Role cannot be changed after creation</p>
+          </div>
+          {updateMutation.isError && (
+            <p className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
+              Failed to update user. Please try again.
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" size="sm" type="button" onClick={() => { setEditingUser(null); resetEdit(); }}>
+              Cancel
+            </Button>
+            <Button size="sm" type="submit" loading={editSubmitting || updateMutation.isPending}>
+              Save changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Deactivate confirmation modal */}
+      <Modal
+        open={!!deactivateUserId}
+        onClose={() => setDeactivateUserId(null)}
+        title="Deactivate User"
+      >
+        <p className="text-sm text-2 mb-6">
+          Are you sure you want to deactivate this user? They will no longer be able to log in.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setDeactivateUserId(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            loading={deactivateMutation.isPending}
+            onClick={() => deactivateUserId && deactivateMutation.mutate(deactivateUserId)}
+          >
+            Deactivate
+          </Button>
+        </div>
       </Modal>
     </div>
   );
