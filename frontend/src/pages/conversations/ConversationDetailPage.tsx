@@ -1,7 +1,8 @@
+// pages/conversations/ConversationDetailPage.tsx
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Send } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { ArrowLeft, Send, MoreVertical, CheckCircle, UserPlus } from 'lucide-react';
 import { conversationsApi } from '../../api/services';
 import { useAuthStore } from '../../store/authStore';
 import { useConversationSocket } from '../../hooks/useConversationSocket';
@@ -21,6 +22,7 @@ export function ConversationDetailPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [replyText, setReplyText] = useState('');
   const [reassignOpen, setReassignOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { data: conversation } = useQuery({
     queryKey: ['conversation', id],
@@ -46,6 +48,14 @@ export function ConversationDetailPage() {
     },
   });
 
+  const resolveMutation = useMutation({
+    mutationFn: () => conversationsApi.resolve(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversation', id] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+
   const handleSendReply = () => {
     const text = replyText.trim();
     if (!text || !id) return;
@@ -58,9 +68,11 @@ export function ConversationDetailPage() {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSendReply();
   };
 
-  const isResolved   = conversation?.status === 'resolved' || conversation?.status === 'closed';
-  const clientName   = conversation ? (fullName(conversation.client) || conversation.client.sender_id) : '…';
-  const agentName    = conversation?.agent ? fullName(conversation.agent) : 'Unassigned';
+  const isResolved = conversation?.status === 'resolved' || conversation?.status === 'closed';
+  const clientName = conversation ? (fullName(conversation.client) || conversation.client.sender_id) : '…';
+  const agentName = conversation?.agent ? fullName(conversation.agent) : 'Unassigned';
+  const canModify = user?.role !== 'agent' || conversation?.agent?.id === user?.id;
+  const isSupervisor = user?.role === 'admin' || user?.role === 'supervisor';
 
   return (
     <div className="flex h-full bg-page">
@@ -86,6 +98,51 @@ export function ConversationDetailPage() {
                 </div>
                 <p className="text-xs text-3 truncate">Agent: {agentName}</p>
               </div>
+
+              {/* Actions dropdown – only for open/pending conversations */}
+              {!isResolved && canModify && (
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuOpen(!menuOpen)}
+                    className="p-1.5 rounded-lg hover:bg-active text-2 hover:text-1 transition-colors"
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                  {menuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setMenuOpen(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-1 w-44 bg-popup border border-theme rounded-lg shadow-lg z-20">
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            resolveMutation.mutate();
+                          }}
+                          disabled={resolveMutation.isPending}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-1 hover:bg-active transition-colors"
+                        >
+                          <CheckCircle size={14} className="text-emerald-500" />
+                          Resolve
+                        </button>
+                        {isSupervisor && (
+                          <button
+                            onClick={() => {
+                              setMenuOpen(false);
+                              setReassignOpen(true);
+                            }}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-1 hover:bg-active transition-colors"
+                          >
+                            <UserPlus size={14} className="text-brand" />
+                            Reassign
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -112,7 +169,6 @@ export function ConversationDetailPage() {
                   <Avatar name={clientName} size="sm" />
                 )}
                 <div className="max-w-[72%] group">
-                  {/* ── Chat bubble colors intentionally unchanged ── */}
                   <div
                     className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                       isOutbound
