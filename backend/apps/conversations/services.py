@@ -13,14 +13,13 @@ class ConversationService:
 
     @staticmethod
     def handle_incoming(message: dict):
+        # ── Step 1: PostgreSQL operations (atomic) ──
         with transaction.atomic():
-            # 1 — find or create client
             client, _ = Client.objects.get_or_create(
                 sender_id=message['sender_id'],
                 defaults={'source': message['source']},
             )
 
-            # 2 — find or create channel
             channel, _ = Channel.objects.get_or_create(
                 page_id=message['page_id'],
                 defaults={
@@ -29,7 +28,6 @@ class ConversationService:
                 },
             )
 
-            # 3 — find open conversation or create new one
             conversation = Conversation.objects.filter(
                 client=client,
                 channel=channel,
@@ -43,34 +41,61 @@ class ConversationService:
                     status=Conversation.Status.PENDING,
                 )
 
-            # 4 — save message to MongoDB
-            try:
-                if not conversation.mongo_conv_id:
-                    mongo_id = MessageRepository.get_or_create_conversation(
-                        str(conversation.id)
-                    )
-                    conversation.mongo_conv_id = mongo_id
-                    conversation.save(update_fields=['mongo_conv_id', 'updated_at'])
-
-                MessageRepository.append_message(conversation.mongo_conv_id, message)
-
-            except Exception as e:
-                print(f'MongoDB error: {e}')
-
-            # 5 — auto-assign if no agent yet
             if not conversation.agent:
                 agent = ConversationService._pick_agent()
                 if agent:
                     ConversationService._assign(conversation, agent, assigned_by='system')
 
-            # 6 — push real-time notification
+        # ── Step 2: MongoDB operations (outside atomic) ──
+        try:
+            if not conversation.mongo_conv_id:
+                mongo_id = MessageRepository.get_or_create_conversation(
+                    str(conversation.id)
+                )
+                Conversation.objects.filter(pk=conversation.pk).update(
+                    mongo_conv_id=mongo_id
+                )
+                conversation.mongo_conv_id = mongo_id
+
+            MessageRepository.append_message(conversation.mongo_conv_id, message)
+            print(f'Message saved to MongoDB: {conversation.mongo_conv_id}')
+
+        except Exception as e:
+            print(f'MongoDB error: {e}')
+            import traceback
+            traceback.print_exc()
+
+        # ── Step 3: WebSocket notification ──
+        try:
             ConversationService._notify_agent(conversation, message)
+        except Exception as e:
+            print(f'WebSocket error: {e}')
 
     @staticmethod
     def _pick_agent() -> User | None:
-        return User.objects.filter(
+        # Priority 1: online agents
+        agent = User.objects.filter(
             role=User.Role.AGENT,
             status=User.Status.ONLINE,
+            is_active=True,
+        ).order_by('open_conversations', 'last_assigned_at').first()
+
+        if agent:
+            return agent
+
+        # Priority 2: busy agents
+        agent = User.objects.filter(
+            role=User.Role.AGENT,
+            status=User.Status.BUSY,
+            is_active=True,
+        ).order_by('open_conversations', 'last_assigned_at').first()
+
+        if agent:
+            return agent
+
+        # Priority 3: any active agent
+        return User.objects.filter(
+            role=User.Role.AGENT,
             is_active=True,
         ).order_by('open_conversations', 'last_assigned_at').first()
 
@@ -143,7 +168,7 @@ class ConversationService:
             conversation.save(update_fields=['mongo_conv_id'])
 
         # Save outbound message to MongoDB
-        message = {
+        msg = {
             'external_id':  '',
             'sender_id':    str(agent.id),
             'direction':    'outbound',
@@ -151,7 +176,7 @@ class ConversationService:
             'text':         text,
             'attachments':  [],
         }
-        MessageRepository.append_message(conversation.mongo_conv_id, message)
+        MessageRepository.append_message(conversation.mongo_conv_id, msg)
 
         # Send via correct channel
         platform  = conversation.channel.platform
