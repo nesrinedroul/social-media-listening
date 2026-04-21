@@ -90,3 +90,12 @@
   .border-brand{ border-color: var(--brand);       }
   .ring-brand  { --tw-ring-color: var(--brand);    }
 }
+
+input, textarea, select {
+  transition: border-color 0.15s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--brand) !important;
+  outline: none;
+}
