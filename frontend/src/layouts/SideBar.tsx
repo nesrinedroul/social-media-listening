@@ -173,7 +173,7 @@ export function Sidebar() {
               onClick={() => setPopoverOpen(o => !o)}
               className="w-full flex items-center gap-2 rounded-lg hover:bg-active px-1 py-1 transition-colors"
             >
-              <Avatar name={fullName(user)} size="sm" status={user.status} />
+              <Avatar name={fullName(user)} size="sm" status={user.status} key={user.status} />
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-xs font-medium text-1 truncate">{fullName(user)}</p>
                 <p className="text-[10px] text-3 truncate">{user.email}</p>
