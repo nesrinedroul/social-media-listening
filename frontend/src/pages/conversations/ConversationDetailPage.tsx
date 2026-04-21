@@ -199,7 +199,7 @@ export function ConversationDetailPage() {
                 value={replyText}
                 onChange={e => setReplyText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Write a reply… (⌘↵ to send)"
+                placeholder="Write a reply…"
                 rows={2}
                 className="flex-1 bg-transparent text-sm text-1 placeholder:text-3 resize-none outline-none"
               />
