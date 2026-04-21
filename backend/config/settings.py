@@ -135,3 +135,5 @@ CSRF_TRUSTED_ORIGINS = [
     'https://social-media-listening-xgcr.onrender.com',
     'http://localhost:8000',
 ]
+POSTMARK_SERVER_TOKEN = env('POSTMARK_SERVER_TOKEN', default='')
+POSTMARK_FROM_EMAIL   = env('POSTMARK_FROM_EMAIL',   default='')
