@@ -140,3 +140,67 @@ class ConversationService:
                 'preview':         message.get('text', '')[:100],
             }
         )
+@staticmethod
+def send_reply(conversation_id: str, agent, text: str) -> dict:
+    """
+    Called when an agent sends a reply.
+    1. Verify agent owns this conversation
+    2. Save outbound message to MongoDB
+    3. Send via correct channel (Meta API or Email)
+    4. Broadcast via WebSocket
+    """
+    try:
+        conversation = Conversation.objects.select_related(
+            'client', 'channel', 'agent'
+        ).get(id=conversation_id)
+    except Conversation.DoesNotExist:
+        raise ValueError('Conversation not found')
+
+    # Only the assigned agent or a supervisor can reply
+    if agent.role == 'agent' and conversation.agent != agent:
+        raise PermissionError('You are not assigned to this conversation')
+
+    # Save to MongoDB as outbound message
+    message = {
+        'external_id':  '',
+        'sender_id':    str(agent.id),
+        'direction':    'outbound',
+        'message_type': 'text',
+        'text':         text,
+        'attachments':  [],
+    }
+    MessageRepository.append_message(conversation.mongo_conv_id, message)
+
+    # Send via correct channel
+    platform  = conversation.channel.platform
+    delivered = False
+
+    if platform == 'email':
+        from apps.integrations.email_sender import PostmarkEmailSender
+        delivered = PostmarkEmailSender.send_reply(conversation, text)
+    else:
+        from apps.integrations.messenger import MetaMessenger
+        delivered = MetaMessenger.send_reply(conversation, text)
+
+    # Broadcast to WebSocket so UI updates instantly
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'user_{conversation.agent.id}',
+            {
+                'type':            'new_message',
+                'conversation_id': str(conversation.id),
+                'message': {
+                    'direction': 'outbound',
+                    'text':      text,
+                    'sender':    agent.full_name(),
+                },
+            }
+        )
+    except Exception as e:
+        print(f'WebSocket broadcast error: {e}')
+
+    return {
+        'saved':     True,
+        'delivered': delivered,
+    }
