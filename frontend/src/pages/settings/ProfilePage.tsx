@@ -1,4 +1,3 @@
-// pages/settings/ProfilePage.tsx
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
@@ -9,23 +8,10 @@ import { Input } from '../../components/ui/Input';
 import { fullName } from '../../utils/utils';
 import type { UserStatus } from '../../types';
 
-// Use explicit, static class strings to ensure Tailwind includes them.
-const statusOptions: { value: UserStatus; label: string; activeClasses: string }[] = [
-  {
-    value: 'online',
-    label: 'Online',
-    activeClasses: 'border-emerald-500 text-emerald-500 bg-emerald-500/10',
-  },
-  {
-    value: 'busy',
-    label: 'Busy',
-    activeClasses: 'border-amber-500 text-amber-500 bg-amber-500/10',
-  },
-  {
-    value: 'offline',
-    label: 'Offline',
-    activeClasses: 'border-gray-400 text-gray-400 bg-gray-400/10',
-  },
+const statusOptions: { value: UserStatus; label: string; activeCls: string }[] = [
+  { value: 'online',  label: 'Online',  activeCls: 'border-emerald-500 text-emerald-500 bg-emerald-500/10' },
+  { value: 'busy',    label: 'Busy',    activeCls: 'border-amber-500  text-amber-500  bg-amber-500/10'     },
+  { value: 'offline', label: 'Offline', activeCls: 'border-theme      text-3          bg-active'           },
 ];
 
 export function ProfilePage() {
@@ -33,16 +19,11 @@ export function ProfilePage() {
   const qc = useQueryClient();
 
   const [firstName, setFirstName] = useState(user?.first_name ?? '');
-  const [lastName, setLastName] = useState(user?.last_name ?? '');
+  const [lastName,  setLastName]  = useState(user?.last_name  ?? '');
   const [saved, setSaved] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
-  const isAgent = user?.role === 'agent';
-
-  // Update user name mutation (admin only)
   const updateMutation = useMutation({
-    mutationFn: () =>
-      authApi.updateUser(user!.id, { first_name: firstName, last_name: lastName }),
+    mutationFn: () => authApi.updateUser(user!.id, { first_name: firstName, last_name: lastName }),
     onSuccess: ({ data }) => {
       setUser(data);
       setSaved(true);
@@ -50,17 +31,11 @@ export function ProfilePage() {
     },
   });
 
-  // Update status mutation
   const statusMutation = useMutation({
     mutationFn: (status: UserStatus) => authApi.updateStatus(status),
     onSuccess: ({ data }) => {
-      // Update the global user object with fresh data from server
       setUser(data);
-      // Invalidate agents list in case it's being displayed elsewhere
       qc.invalidateQueries({ queryKey: ['agents'] });
-    },
-    onError: (error) => {
-      console.error('Failed to update status:', error);
     },
   });
 
@@ -73,12 +48,7 @@ export function ProfilePage() {
       <div className="max-w-xl mx-auto px-5 py-8 space-y-8">
         {/* Profile header */}
         <div className="flex items-center gap-4">
-          <Avatar
-            name={name}
-            size="lg"
-            status={user.status}
-            key={`${user.id}-${user.status}`} // Force remount on status change
-          />
+          <Avatar name={name} size="lg" status={user.status} />
           <div>
             <h1 className="font-semibold text-1">{name}</h1>
             <p className="text-sm text-2">{user.email}</p>
@@ -93,68 +63,52 @@ export function ProfilePage() {
             <Input
               label="First name"
               value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              disabled={!isAdmin}
-              className={!isAdmin ? 'opacity-60 cursor-not-allowed' : ''}
+              onChange={e => setFirstName(e.target.value)}
             />
             <Input
               label="Last name"
               value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              disabled={!isAdmin}
-              className={!isAdmin ? 'opacity-60 cursor-not-allowed' : ''}
+              onChange={e => setLastName(e.target.value)}
             />
           </div>
-          <Input
-            label="Email"
-            value={user.email}
-            disabled
-            className="opacity-60 cursor-not-allowed"
-          />
-          {isAdmin && (
-            <div className="flex items-center justify-between pt-1">
-              {saved && <p className="text-xs text-emerald-500">Changes saved!</p>}
-              <div className="ml-auto">
-                <Button
-                  size="sm"
-                  loading={updateMutation.isPending}
-                  onClick={() => updateMutation.mutate()}
-                >
-                  Update settings
-                </Button>
-              </div>
+          <Input label="Email" value={user.email} disabled className="opacity-50 cursor-not-allowed" />
+          <div className="flex items-center justify-between pt-1">
+            {saved && <p className="text-xs text-emerald-500">Changes saved!</p>}
+            <div className="ml-auto">
+              <Button
+                size="sm"
+                loading={updateMutation.isPending}
+                onClick={() => updateMutation.mutate()}
+              >
+                Update settings
+              </Button>
             </div>
-          )}
+          </div>
         </section>
 
         {/* Status */}
-        {isAgent && (
+        {user.role === 'agent' && (
           <section className="bg-sidebar border border-theme rounded-xl p-5">
             <h2 className="text-sm font-semibold text-1 mb-3">Availability</h2>
             <p className="text-xs text-2 mb-4">
-              Your status is automatically managed by your WebSocket connection. Use this to
-              manually override it.
+              Your status is automatically managed by your WebSocket connection.
+              Use this to manually override it.
             </p>
             <div className="flex gap-2">
-              {statusOptions.map((opt) => {
-                const isActive = user.status === opt.value;
-                const isLoading = statusMutation.isPending && statusMutation.variables === opt.value;
-
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => statusMutation.mutate(opt.value)}
-                    disabled={statusMutation.isPending}
-                    className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
-                      isActive
-                        ? opt.activeClasses
-                        : 'border-active text-3 bg-active hover:border-brand hover:text-1'
-                    }`}
-                  >
-                    {isLoading ? '...' : opt.label}
-                  </button>
-                );
-              })}
+              {statusOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => statusMutation.mutate(opt.value)}
+                  disabled={statusMutation.isPending}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    user.status === opt.value
+                      ? opt.activeCls
+                      : 'border-theme text-3 bg-active hover:border-brand hover:text-1'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </section>
         )}
