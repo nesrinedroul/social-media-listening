@@ -103,7 +103,6 @@ MONGODB_DB_NAME = env('MONGODB_DB_NAME', default='social_listening_db')
 
 REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 
-# Celery config
 if REDIS_URL.startswith('rediss://'):
     CELERY_BROKER_URL     = REDIS_URL + '?ssl_cert_reqs=CERT_NONE'
     CELERY_RESULT_BACKEND = REDIS_URL + '?ssl_cert_reqs=CERT_NONE'
