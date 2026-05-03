@@ -74,12 +74,17 @@ SPECTACULAR_SETTINGS = {
 }
 
 
+import dj_database_url
 
 DATABASE_URL = env('DATABASE_URL', default=None)
 
 if DATABASE_URL:
     DATABASES = {
-        'default': dj_database_url.config(default=DATABASE_URL)
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
 else:
     DATABASES = {
@@ -92,7 +97,6 @@ else:
             'PORT':     env('DB_PORT',     default='5432'),
         }
     }
-
 MONGODB_URI     = env('MONGODB_URI',     default='mongodb://localhost:27017')
 MONGODB_DB_NAME = env('MONGODB_DB_NAME', default='social_listening_db')
 
