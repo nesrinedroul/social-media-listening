@@ -43,16 +43,25 @@ class MeView(APIView):
 
 
 class AgentStatusView(APIView):
-    """Agent updates their own status (online/busy/offline)"""
+    """Agent manually sets their own status"""
     permission_classes = [permissions.IsAuthenticated]
 
     def patch(self, request):
-        serializer = AgentStatusSerializer(request.user, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        new_status = request.data.get('status')
 
+        if new_status not in ['online', 'busy', 'offline']:
+            return Response(
+                {'detail': 'status must be online, busy or offline'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Save as both current status and manual override
+        User.objects.filter(pk=request.user.pk).update(
+            status=new_status,
+            manual_status=new_status,
+        )
+
+        return Response({'status': new_status, 'manual_status': new_status})
 
 class LogoutView(APIView):
     """Blacklist the refresh token on logout"""
@@ -67,10 +76,6 @@ class LogoutView(APIView):
         return Response({'detail': 'Logged out'}, status=status.HTTP_200_OK)
 
 class AgentListView(APIView):
-    """
-    Returns all agents with their current status.
-    Used by supervisor to see who is online/busy/offline.
-    """
     permission_classes = [IsAdminOrSupervisor]
 
     def get(self, request):
@@ -84,20 +89,19 @@ class AgentListView(APIView):
 
         data = []
         for agent in agents:
-            # consider agent inactive if last_seen > 2 minutes ago
             is_recently_active = (
                 agent.last_seen and
                 agent.last_seen >= timezone.now() - timedelta(minutes=2)
             )
-
             data.append({
-                'id':                str(agent.id),
-                'email':             agent.email,
-                'full_name':         agent.full_name(),
-                'status':            agent.status,
-                'open_conversations': agent.open_conversations,
-                'last_seen':         agent.last_seen.isoformat() if agent.last_seen else None,
-                'is_active':         is_recently_active,
+                'id':                  str(agent.id),
+                'email':               agent.email,
+                'full_name':           agent.full_name(),
+                'status':              agent.status,
+                'manual_status':       agent.manual_status,
+                'open_conversations':  agent.open_conversations,
+                'last_seen':           agent.last_seen.isoformat() if agent.last_seen else None,
+                'is_recently_active':  is_recently_active,
             })
 
         return Response(data)

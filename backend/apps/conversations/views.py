@@ -85,19 +85,35 @@ class ConversationMessagesView(APIView):
 
         return Response(result)
 
-
 class ResolveConversationView(APIView):
-    """Agent marks a conversation as resolved"""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
         try:
-            conversation = Conversation.objects.get(pk=pk, agent=request.user)
+            conversation = Conversation.objects.select_related('agent').get(pk=pk)
+
+            # Check permission — agent can only resolve their own
+            if request.user.role == 'agent' and conversation.agent != request.user:
+                return Response(
+                    {'detail': 'Not your conversation'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            old_agent        = conversation.agent
             conversation.status = Conversation.Status.RESOLVED
             conversation.save(update_fields=['status', 'updated_at'])
+
+            # Update agent workload + auto status
+            if old_agent:
+                ConversationService._check_agent_workload(old_agent)
+
             return Response({'detail': 'Resolved'})
+
         except Conversation.DoesNotExist:
-            return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'detail': 'Not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class ReassignConversationView(APIView):

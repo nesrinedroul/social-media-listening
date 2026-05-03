@@ -23,3 +23,14 @@ class UserAdmin(BaseUserAdmin):
             'fields':  ('email', 'password1', 'password2', 'role'),
         }),
     )
+from .models import User, AgentGroup
+
+@admin.register(AgentGroup)
+class AgentGroupAdmin(admin.ModelAdmin):
+    list_display  = ('name', 'platform', 'is_active', 'agent_count')
+    list_filter   = ('platform', 'is_active')
+    filter_horizontal = ('agents',)  # interface drag & drop pour ajouter agents
+
+    def agent_count(self, obj):
+        return obj.agents.count()
+    agent_count.short_description = 'Nombre d\'agents'

@@ -1,3 +1,5 @@
+import platform
+
 from django.db import transaction
 from django.utils import timezone
 from channels.layers import get_channel_layer
@@ -42,7 +44,7 @@ class ConversationService:
                 )
 
             if not conversation.agent:
-                agent = ConversationService._pick_agent()
+                agent = ConversationService._pick_agent(platform=message.get('source'))
                 if agent:
                     ConversationService._assign(conversation, agent, assigned_by='system')
 
@@ -72,33 +74,32 @@ class ConversationService:
             print(f'WebSocket error: {e}')
 
     @staticmethod
-    def _pick_agent() -> User | None:
-        # Priority 1: online agents
-        agent = User.objects.filter(
-            role=User.Role.AGENT,
-            status=User.Status.ONLINE,
-            is_active=True,
-        ).order_by('open_conversations', 'last_assigned_at').first()
+    def _pick_agent(platform: str = None) -> User | None:
+        """
+        Only picks agents from the platform group.
+        Only considers ONLINE agents.
+        No global fallback — stays pending if nobody available.
+        """
+        from apps.accounts.models import AgentGroup
 
-        if agent:
-            return agent
+        if not platform:
+            return None
 
-        # Priority 2: busy agents
-        agent = User.objects.filter(
-            role=User.Role.AGENT,
-            status=User.Status.BUSY,
-            is_active=True,
-        ).order_by('open_conversations', 'last_assigned_at').first()
+        try:
+            group        = AgentGroup.objects.get(platform=platform, is_active=True)
+            group_agents = group.agents.filter(
+                role=User.Role.AGENT,
+                is_active=True,
+                status=User.Status.ONLINE,  # only online agents
+            )
+            return group_agents.order_by(
+                'open_conversations', 'last_assigned_at'
+            ).first()
 
-        if agent:
-            return agent
-
-        # Priority 3: any active agent
-        return User.objects.filter(
-            role=User.Role.AGENT,
-            is_active=True,
-        ).order_by('open_conversations', 'last_assigned_at').first()
-
+        except AgentGroup.DoesNotExist:
+            # No group configured for this platform → stay pending
+            print(f'No group configured for platform: {platform}')
+            return None
     @staticmethod
     def _assign(conversation: Conversation, agent: User, assigned_by: str):
         conversation.agent  = agent
@@ -111,10 +112,14 @@ class ConversationService:
             assigned_by=assigned_by,
         )
 
+        # Increment counter + set agent to BUSY automatically
         User.objects.filter(pk=agent.pk).update(
             open_conversations=agent.open_conversations + 1,
             last_assigned_at=timezone.now(),
+            status=User.Status.BUSY,  # ← auto busy when assigned
         )
+
+        print(f'Agent {agent.email} set to BUSY after assignment')
 
     @staticmethod
     def reassign(conversation_id: str, new_agent_id: str, supervisor: User):
@@ -231,3 +236,29 @@ class ConversationService:
             )
         except Exception as e:
             print(f'WebSocket notify error: {e}')
+    @staticmethod
+    def _check_agent_workload(agent: User):
+        """
+        Called after a conversation is resolved.
+        If agent has no more open conversations AND their manual_status is online
+        → set back to online automatically.
+        """
+        open_count = Conversation.objects.filter(
+            agent=agent,
+            status__in=[Conversation.Status.OPEN, Conversation.Status.PENDING],
+        ).count()
+
+        User.objects.filter(pk=agent.pk).update(
+            open_conversations=open_count,
+        )
+
+        # Only go back to online if agent manually set themselves online
+        if open_count == 0 and agent.manual_status == User.Status.ONLINE:
+            User.objects.filter(pk=agent.pk).update(
+                status=User.Status.ONLINE,
+            )
+            print(f'Agent {agent.email} back to ONLINE — no open conversations')
+        elif open_count > 0:
+            User.objects.filter(pk=agent.pk).update(
+                status=User.Status.BUSY,
+            )
