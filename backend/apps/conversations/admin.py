@@ -7,7 +7,7 @@ class ChannelAdmin(admin.ModelAdmin):
     list_display  = ('name', 'platform', 'page_id', 'is_active')
     list_filter   = ('platform', 'is_active')
     search_fields = ('name', 'page_id')
-
+    fields        = ('platform', 'page_id', 'name', 'is_active', 'access_token')
 
 @admin.register(Conversation)
 class ConversationAdmin(admin.ModelAdmin):

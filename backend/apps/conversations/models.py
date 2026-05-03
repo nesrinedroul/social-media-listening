@@ -12,12 +12,14 @@ class Channel(models.Model):
         WHATSAPP  = 'whatsapp',  'WhatsApp'
         EMAIL     = 'email',     'Email'
 
-    id        = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    platform  = models.CharField(max_length=20, choices=Platform.choices)
-    page_id   = models.CharField(max_length=100, unique=True)
-    name      = models.CharField(max_length=100)
-    is_active = models.BooleanField(default=True)
+    id           = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    platform     = models.CharField(max_length=20, choices=Platform.choices)
+    page_id      = models.CharField(max_length=100, unique=True)
+    name         = models.CharField(max_length=100)
+    is_active    = models.BooleanField(default=True)
+    access_token = models.TextField(blank=True)  
 
+    
     class Meta:
         db_table = 'channels'
 
