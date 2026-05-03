@@ -19,4 +19,5 @@ urlpatterns = [
     path('api/clients/',      include('apps.clients.urls')),
     path('api/conversations/', include('apps.conversations.urls')),
     path('api/integrations/', include('apps.integrations.urls')),
+    path('api/analytics/', include('apps.analytics.urls')),
 ]
