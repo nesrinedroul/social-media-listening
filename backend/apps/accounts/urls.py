@@ -29,3 +29,10 @@ path('groups/<uuid:pk>/',               AgentGroupDetailView.as_view(),      nam
 path('groups/<uuid:pk>/add-agent/',     AddAgentToGroupView.as_view(),       name='group-add-agent'),
 path('groups/<uuid:pk>/remove-agent/',  RemoveAgentFromGroupView.as_view(),  name='group-remove-agent'),
 path('groups/platform/<str:platform>/', AgentGroupsByPlatformView.as_view(), name='group-by-platform'),
+from .views import AdminResetPasswordView
+
+# add to urlpatterns:
+path('users/<uuid:pk>/reset-password/', AdminResetPasswordView.as_view(), name='reset-password'),
+from .views import ChangePasswordView
+
+path('password/change/', ChangePasswordView.as_view(), name='change-password'),

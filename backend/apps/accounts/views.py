@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
-from .serializers import UserSerializer, RegisterSerializer, AgentStatusSerializer
+from .serializers import AdminUserUpdateSerializer, UserSerializer, RegisterSerializer, AgentStatusSerializer
 from .permissions import IsAdmin, IsAdminOrSupervisor
 
 
@@ -28,12 +28,40 @@ class UserListView(generics.ListAPIView):
 
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
-    """Get or update a single user"""
-    serializer_class   = UserSerializer
     permission_classes = [IsAdminOrSupervisor]
     queryset           = User.objects.all()
 
+    def get_serializer_class(self):
+        # Admin updating → use full update serializer
+        if self.request.method in ['PUT', 'PATCH'] and self.request.user.role == 'admin':
+            return AdminUserUpdateSerializer
+        return UserSerializer
 
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return [IsAdmin()]
+        return [IsAdminOrSupervisor()]
+class AdminResetPasswordView(APIView):
+    """Admin resets any user's password"""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        try:
+            user         = User.objects.get(pk=pk)
+            new_password = request.data.get('password')
+
+            if not new_password or len(new_password) < 6:
+                return Response(
+                    {'detail': 'Password must be at least 6 characters'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.set_password(new_password)
+            user.save()
+            return Response({'detail': f'Password reset for {user.email}'})
+
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found'}, status=404)
 class MeView(APIView):
     """Returns the currently logged-in user's profile"""
     permission_classes = [permissions.IsAuthenticated]
@@ -105,3 +133,26 @@ class AgentListView(APIView):
             })
 
         return Response(data)
+class ChangePasswordView(APIView):
+    """Agent/supervisor changes their own password"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+
+        if not request.user.check_password(old_password):
+            return Response(
+                {'detail': 'Current password is incorrect'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not new_password or len(new_password) < 6:
+            return Response(
+                {'detail': 'New password must be at least 6 characters'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        request.user.set_password(new_password)
+        request.user.save()
+        return Response({'detail': 'Password changed successfully'})

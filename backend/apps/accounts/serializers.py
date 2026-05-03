@@ -6,9 +6,32 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'role', 'status',
-                  'open_conversations', 'is_active', 'created_at')
+        fields = ('id', 'email', 'first_name', 'last_name', 'role',
+                  'status', 'manual_status', 'open_conversations',
+                  'is_active', 'created_at')
         read_only_fields = ('id', 'created_at', 'open_conversations')
+
+
+class AdminUserUpdateSerializer(serializers.ModelSerializer):
+    """
+    Admin can update everything including email and role.
+    """
+    class Meta:
+        model  = User
+        fields = ('email', 'first_name', 'last_name', 'role',
+                  'status', 'is_active')
+
+    def validate_email(self, value):
+        # Make sure email is unique but allow same user to keep their email
+        user = self.instance
+        if User.objects.exclude(pk=user.pk).filter(email=value).exists():
+            raise serializers.ValidationError('This email is already in use')
+        return value
+
+    def validate_role(self, value):
+        if value not in ['admin', 'supervisor', 'agent']:
+            raise serializers.ValidationError('Invalid role')
+        return value
 
 
 class RegisterSerializer(serializers.ModelSerializer):
