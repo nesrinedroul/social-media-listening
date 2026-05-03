@@ -19,6 +19,8 @@ class MetaWebhookView(View):
         token     = request.GET.get('hub.verify_token')
         challenge = request.GET.get('hub.challenge')
 
+        print(f'Meta webhook verify: mode={mode} token={token}')
+
         if mode == 'subscribe' and token == settings.META_VERIFY_TOKEN:
             return HttpResponse(challenge, content_type='text/plain', status=200)
 
@@ -42,7 +44,6 @@ class MetaWebhookView(View):
             hashlib.sha256
         ).hexdigest()
         return hmac.compare_digest(expected, signature[7:])
-    
 @method_decorator(csrf_exempt, name='dispatch')  
 class EmailWebhookView(View):
     """
