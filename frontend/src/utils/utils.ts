@@ -15,29 +15,35 @@ export function formatTime(dateStr: string | null): string {
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+export function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 export const platformColors: Record<Platform, string> = {
-  facebook: '#1877F2',
+  facebook:  '#1877F2',
   instagram: '#E1306C',
-  whatsapp: '#25D366',
+  whatsapp:  '#25D366',
+  email:     '#8b5cf6',
 };
 
 export const platformLabels: Record<Platform, string> = {
-  facebook: 'Facebook',
+  facebook:  'Facebook',
   instagram: 'Instagram',
-  whatsapp: 'WhatsApp',
+  whatsapp:  'WhatsApp',
+  email:     'Email',
 };
 
 export const statusColors: Record<UserStatus, string> = {
-  online: '#44b700',
-  busy: '#ff9800',
+  online:  '#44b700',
+  busy:    '#ff9800',
   offline: '#9e9e9e',
 };
 
 export const statusBadge: Record<ConversationStatus, { label: string; cls: string }> = {
-  pending: { label: 'Pending', cls: 'bg-yellow-500/20 text-yellow-400' },
-  open: { label: 'Open', cls: 'bg-blue-500/20 text-blue-400' },
-  resolved: { label: 'Resolved', cls: 'bg-green-500/20 text-green-400' },
-  closed: { label: 'Closed', cls: 'bg-slate-500/20 text-slate-400' },
+  pending:  { label: 'Pending',  cls: 'bg-yellow-500/20 text-yellow-400' },
+  open:     { label: 'Open',     cls: 'bg-blue-500/20 text-blue-400'     },
+  resolved: { label: 'Resolved', cls: 'bg-green-500/20 text-green-400'   },
+  closed:   { label: 'Closed',   cls: 'bg-slate-500/20 text-slate-400'   },
 };
 
 export function fullName(u: { first_name: string; last_name: string; email: string }): string {
@@ -46,4 +52,14 @@ export function fullName(u: { first_name: string; last_name: string; email: stri
 
 export function initials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+/** Triggers a browser file download from a Blob */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

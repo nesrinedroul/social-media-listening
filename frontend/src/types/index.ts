@@ -30,7 +30,7 @@ export interface TokenPair {
 
 // ─── Client ─────────────────────────────────────────────────────────────────
 
-export type ClientSource = 'facebook' | 'instagram' | 'whatsapp';
+export type ClientSource = 'facebook' | 'instagram' | 'whatsapp' | 'email';
 
 export interface Client {
   id: string;
@@ -46,7 +46,8 @@ export interface Client {
 
 // ─── Channel ────────────────────────────────────────────────────────────────
 
-export type Platform = 'facebook' | 'instagram' | 'whatsapp';
+export type Platform = 'facebook' | 'instagram' | 'whatsapp' | 'email';
+export type GroupPlatform = Platform | 'all';
 
 export interface Channel {
   id: string;
@@ -54,6 +55,18 @@ export interface Channel {
   page_id: string;
   name: string;
   is_active: boolean;
+}
+
+// ─── Agent Group ─────────────────────────────────────────────────────────────
+
+export interface AgentGroup {
+  id: string;
+  name: string;
+  platform: GroupPlatform;
+  agents: User[];
+  agent_count: number;
+  is_active: boolean;
+  created_at: string;
 }
 
 // ─── Conversation ────────────────────────────────────────────────────────────
@@ -112,3 +125,73 @@ export interface WsNewMessage {
 }
 
 export type WsEvent = WsNewConversation | WsNewMessage;
+
+// ─── Analytics (matches backend response exactly) ───────────────────────────
+
+export interface AnalyticsOverview {
+  conversations: {
+    total: number;
+    open: number;
+    pending: number;
+    resolved: number;
+    closed: number;
+  };
+  clients: {
+    total: number;
+    new_today: number;
+    by_source: { source: string; count: number }[];
+  };
+  agents: {
+    total: number;
+    online: number;
+    busy: number;
+    offline: number;
+  };
+  today: {
+    new_conversations: number;
+    resolved_today: number;
+  };
+}
+
+export interface TrendPoint {
+  period: string;          // e.g., "2026-05-05"
+  total: number;
+  open: number;
+  pending: number;
+  resolved: number;
+}
+
+export interface PlatformStat {
+  channel__platform: string;
+  total: number;
+  open: number;
+  resolved: number;
+}
+
+export interface AgentPerformanceStat {
+  agent_id: string;
+  agent_name: string;
+  agent_email: string;
+  total_handled: number;
+  resolved: number;
+  open: number;
+  resolution_rate: number;
+  current_status: string;
+  open_conversations: number;
+}
+
+export interface AnalyticsStats {
+  overview: AnalyticsOverview;
+  trends: TrendPoint[];
+  platform_breakdown: PlatformStat[];
+  agent_performance: AgentPerformanceStat[];
+}
+
+export interface ExportParams {
+  date_from?: string;
+  date_to?: string;
+  status?: ConversationStatus;
+  platform?: Platform;
+  agent_id?: string;
+  format?: 'xlsx' | 'pdf';
+}

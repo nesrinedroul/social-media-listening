@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Inbox, MessageSquare, Users, Settings,
   UserCog, Search, ChevronDown, Sun, Moon, Monitor, LogOut, Palette,
+  BarChart2, Layers,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
@@ -32,7 +33,6 @@ export function Sidebar() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const { mode, setMode } = useTheme();
 
-  // Close popover when clicking outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
@@ -58,7 +58,7 @@ export function Sidebar() {
   return (
     <>
       <aside className="w-65 shrink-0 h-screen bg-sidebar border-r border-theme flex flex-col select-none">
-        {/* Workspace header — shows user's full name */}
+        {/* Workspace header */}
         <div className="px-4 py-3 border-b border-theme flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center shrink-0">
             <MessageSquare size={14} className="text-white" />
@@ -88,6 +88,7 @@ export function Sidebar() {
             My Inbox
           </NavLink>
 
+          {/* Conversations section */}
           <div className="pt-3 pb-1">
             <span className="px-3 text-[10px] font-semibold uppercase tracking-widest text-3">
               Conversations
@@ -98,6 +99,7 @@ export function Sidebar() {
             All Conversations
           </NavLink>
 
+          {/* Contacts — admin/supervisor only */}
           {isAdminOrSup && (
             <>
               <div className="pt-3 pb-1">
@@ -112,6 +114,22 @@ export function Sidebar() {
             </>
           )}
 
+          {/* Analytics — admin/supervisor only */}
+          {isAdminOrSup && (
+            <>
+              <div className="pt-3 pb-1">
+                <span className="px-3 text-[10px] font-semibold uppercase tracking-widest text-3">
+                  Insights
+                </span>
+              </div>
+              <NavLink to="/analytics" className={navLink}>
+                <BarChart2 size={16} />
+                Analytics
+              </NavLink>
+            </>
+          )}
+
+          {/* Settings section */}
           <div className="pt-3 pb-1">
             <button
               onClick={() => setSettingsOpen(o => !o)}
@@ -131,10 +149,16 @@ export function Sidebar() {
                 </NavLink>
               )}
               {isAdminOrSup && (
-                <NavLink to="/settings/agents" className={navLink}>
-                  <Users size={16} />
-                  Agents
-                </NavLink>
+                <>
+                  <NavLink to="/settings/agents" className={navLink}>
+                    <Users size={16} />
+                    Agents
+                  </NavLink>
+                  <NavLink to="/settings/groups" className={navLink}>
+                    <Layers size={16} />
+                    Groups
+                  </NavLink>
+                </>
               )}
               <NavLink to="/settings/profile" className={navLink}>
                 <Settings size={16} />
@@ -144,10 +168,9 @@ export function Sidebar() {
           )}
         </nav>
 
-        {/* User footer — clickable, opens popover */}
+        {/* User footer */}
         {user && (
           <div className="relative border-t border-theme px-3 py-3" ref={popoverRef}>
-            {/* Popover menu */}
             {popoverOpen && (
               <div className="absolute bottom-full left-3 right-3 mb-2 bg-popup border border-theme rounded-xl shadow-lg overflow-hidden z-50">
                 <button
@@ -168,7 +191,6 @@ export function Sidebar() {
               </div>
             )}
 
-            {/* Clickable user row */}
             <button
               onClick={() => setPopoverOpen(o => !o)}
               className="w-full flex items-center gap-2 rounded-lg hover:bg-active px-1 py-1 transition-colors"

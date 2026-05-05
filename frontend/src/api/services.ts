@@ -2,6 +2,7 @@ import { api } from './client';
 import type {
   TokenPair, User, AgentListItem,
   Client, Conversation, Message, ConversationStatus,
+  AgentGroup, GroupPlatform, AnalyticsStats, ExportParams,
 } from '../types';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -35,6 +36,38 @@ export const authApi = {
 
   agents: () =>
     api.get<AgentListItem[]>('/api/auth/agents/'),
+
+  resetPassword: (id: string, password: string) =>
+    api.post(`/api/auth/users/${id}/reset-password/`, { password }),   // FIXED: backend expects { password }
+
+  changePassword: (old_password: string, new_password: string, new_password2: string) =>
+    api.post('/api/auth/password/change/', { old_password, new_password, new_password2 }),
+
+  // ─── Groups ────────────────────────────────────────────────────────────────
+
+  groups: () =>
+    api.get<AgentGroup[]>('/api/auth/groups/'),
+
+  group: (id: string) =>
+    api.get<AgentGroup>(`/api/auth/groups/${id}/`),
+
+  createGroup: (data: { name: string; platform: GroupPlatform }) =>
+    api.post<AgentGroup>('/api/auth/groups/', data),
+
+  updateGroup: (id: string, data: Partial<Pick<AgentGroup, 'name' | 'is_active'>>) =>
+    api.patch<AgentGroup>(`/api/auth/groups/${id}/`, data),
+
+  deleteGroup: (id: string) =>
+    api.delete(`/api/auth/groups/${id}/`),
+
+  addAgentToGroup: (groupId: string, agent_id: string) =>
+    api.post<AgentGroup>(`/api/auth/groups/${groupId}/add-agent/`, { agent_id }),
+
+  removeAgentFromGroup: (groupId: string, agent_id: string) =>
+    api.post<AgentGroup>(`/api/auth/groups/${groupId}/remove-agent/`, { agent_id }),
+
+  groupByPlatform: (platform: GroupPlatform) =>
+    api.get<AgentGroup>(`/api/auth/groups/platform/${platform}/`),
 };
 
 // ─── Clients ─────────────────────────────────────────────────────────────────
@@ -55,7 +88,7 @@ export const clientsApi = {
 export const conversationsApi = {
   list: (status?: ConversationStatus) =>
     api.get<Conversation[]>('/api/conversations/', {
-      params: status ? { status } : {}
+      params: status ? { status } : {},
     }),
 
   get: (id: string) =>
@@ -69,6 +102,23 @@ export const conversationsApi = {
 
   reassign: (id: string, agent_id: string) =>
     api.post(`/api/conversations/${id}/reassign/`, { agent_id }),
+};
 
-  
+// ─── Analytics ───────────────────────────────────────────────────────────────
+
+export const analyticsApi = {
+  stats: (params?: { date_from?: string; date_to?: string }) =>
+    api.get<AnalyticsStats>('/api/analytics/stats/', { params }),
+
+  exportConversations: (params?: ExportParams) =>
+    api.get('/api/analytics/export/conversations/', { params, responseType: 'blob' }),
+
+  exportAgents: (params?: Pick<ExportParams, 'date_from' | 'date_to' | 'format'>) =>
+    api.get('/api/analytics/export/agents/', { params, responseType: 'blob' }),
+
+  exportClients: (params?: Pick<ExportParams, 'date_from' | 'date_to' | 'format'>) =>
+    api.get('/api/analytics/export/clients/', { params, responseType: 'blob' }),
+
+  exportFull: (params?: Pick<ExportParams, 'date_from' | 'date_to' | 'format'>) =>
+    api.get('/api/analytics/export/full/', { params, responseType: 'blob' }),
 };
