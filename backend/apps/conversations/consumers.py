@@ -11,7 +11,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.user       = self.scope['user']
-        self.group_name = None  # ← always initialize first
+        self.group_name = None 
 
         if not self.user.is_authenticated:
             await self.close()
@@ -21,12 +21,10 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        # Agent logs in → set to BUSY automatically
         if self.user.role == 'agent':
-            await self._set_busy_on_login()
+            await self._set_initial_status()
 
     async def disconnect(self, close_code):
-        # Guard: only clean up if connect() fully completed
         if not self.group_name:
             return
 
@@ -41,25 +39,35 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             return
 
-        if data.get('type') == 'heartbeat':
+        msg_type = data.get('type')
+
+        if msg_type == 'heartbeat':
             await self._update_last_seen()
 
-        elif data.get('type') == 'send_reply':
+        elif msg_type == 'send_reply':
             await self._handle_reply(
                 conversation_id=data.get('conversation_id'),
                 text=data.get('text', ''),
             )
-
-    # ── Database methods ────────────────────────────────────────────
+        elif msg_type == 'status_change':
+            new_status = data.get('status')
+            if new_status in ['online', 'busy', 'away', 'offline']:
+                await self._change_status(new_status)
 
     @database_sync_to_async
-    def _set_busy_on_login(self):
+    def _set_initial_status(self):
         from apps.accounts.models import User
+        user = User.objects.get(pk=self.user.pk)
+        if user.status in [None, 'offline']:
+            new_status = 'busy'
+        else:
+            new_status = user.status  
+        
         User.objects.filter(pk=self.user.pk).update(
-            status='busy',
+            status=new_status,
             last_seen=timezone.now(),
         )
-        logger.info(f'Agent {self.user.email} connected → BUSY')
+        logger.info(f'Agent {self.user.email} connected → {new_status.upper()}')
 
     @database_sync_to_async
     def _set_offline(self):
@@ -69,6 +77,22 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             last_seen=timezone.now(),
         )
         logger.info(f'Agent {self.user.email} disconnected → OFFLINE')
+
+    @database_sync_to_async
+    def _change_status(self, new_status: str):
+        from apps.accounts.models import User
+        User.objects.filter(pk=self.user.pk).update(
+            status=new_status,
+            last_seen=timezone.now(),
+        )
+        logger.info(f'Agent {self.user.email} changed status to {new_status.upper()}')
+        
+        # Optionnel: Broadcast le changement aux autres agents/admin via channel layer
+        # await self.channel_layer.group_send('agents_monitoring', {
+        #     'type': 'agent_status_update',
+        #     'agent_id': self.user.id,
+        #     'status': new_status,
+        # })
 
     @database_sync_to_async
     def _update_last_seen(self):
@@ -90,8 +114,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f'Reply error: {e}')
 
-    # ── Channel layer event handlers ─────────────────────────────────
-
+   
     async def new_conversation(self, event):
         await self.send(text_data=json.dumps({
             'type':            'new_conversation',
