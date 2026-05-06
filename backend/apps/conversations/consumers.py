@@ -2,6 +2,7 @@ import json
 import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +21,20 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        # On connect — respect manual_status
         if self.user.role == 'agent':
-            await self._restore_status_on_connect()
+            await self._set_initial_status()
 
     async def disconnect(self, close_code):
         if not self.group_name:
             return
 
         if hasattr(self, 'user') and self.user.is_authenticated and self.user.role == 'agent':
-            await self._set_offline()
+            # Delay offline — allows page refresh to reconnect before marking offline
+            from apps.accounts.tasks import set_agent_offline_delayed
+            set_agent_offline_delayed.apply_async(
+                args=[self.user.pk],
+                countdown=15
+            )
 
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
@@ -39,42 +44,56 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             return
 
-        if data.get('type') == 'send_reply':
+        msg_type = data.get('type')
+
+        if msg_type == 'heartbeat':
+            await self._update_last_seen()
+
+        elif msg_type == 'send_reply':
             await self._handle_reply(
                 conversation_id=data.get('conversation_id'),
                 text=data.get('text', ''),
             )
+        elif msg_type == 'status_change':
+            new_status = data.get('status')
+            if new_status in ['online', 'busy', 'away', 'offline']:
+                await self._change_status(new_status)
 
     @database_sync_to_async
-    def _restore_status_on_connect(self):
-        """
-        On WebSocket connect (login or page refresh):
-        - If agent manually chose online → set to busy (they're working)
-        - If agent manually chose busy   → keep busy
-        - If agent manually chose offline → respect it, don't change
-        This means page refresh won't reset a manually set status.
-        """
+    def _set_initial_status(self):
         from apps.accounts.models import User
         user = User.objects.get(pk=self.user.pk)
 
-        manual = user.manual_status or 'offline'
-
-        if manual in ('online', 'busy'):
-            User.objects.filter(pk=self.user.pk).update(status='busy')
-            logger.info(f'Agent {user.email} reconnected → BUSY (manual={manual})')
+        # Only change status if agent is offline/has no status (first login)
+        # If already online/busy/away, just update last_seen — prevents refresh reset
+        if user.status in [None, 'offline']:
+            User.objects.filter(pk=self.user.pk).update(
+                status='busy',
+                last_seen=timezone.now(),
+            )
+            logger.info(f'Agent {self.user.email} connected → BUSY')
         else:
-            # manual = offline → don't touch status
-            logger.info(f'Agent {user.email} reconnected → kept OFFLINE (manual=offline)')
+            # Agent reconnected (e.g. page refresh) — keep existing status
+            User.objects.filter(pk=self.user.pk).update(
+                last_seen=timezone.now(),
+            )
+            logger.info(f'Agent {self.user.email} reconnected → keeping {user.status.upper()}')
 
     @database_sync_to_async
-    def _set_offline(self):
-        """
-        On disconnect — always set status to offline.
-        manual_status stays unchanged so we remember what they chose.
-        """
+    def _change_status(self, new_status: str):
         from apps.accounts.models import User
-        User.objects.filter(pk=self.user.pk).update(status='offline')
-        logger.info(f'Agent {self.user.email} disconnected → OFFLINE')
+        User.objects.filter(pk=self.user.pk).update(
+            status=new_status,
+            last_seen=timezone.now(),
+        )
+        logger.info(f'Agent {self.user.email} changed status to {new_status.upper()}')
+
+    @database_sync_to_async
+    def _update_last_seen(self):
+        from apps.accounts.models import User
+        User.objects.filter(pk=self.user.pk).update(
+            last_seen=timezone.now(),
+        )
 
     @database_sync_to_async
     def _handle_reply(self, conversation_id: str, text: str):
