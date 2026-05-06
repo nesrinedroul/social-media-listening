@@ -2,6 +2,14 @@ import io
 from datetime import datetime
 
 
+def _client_name(client) -> str:
+    """
+    Safe helper — Client has no full_name() method (that's User only).
+    Falls back to sender_id so we never get an empty cell.
+    """
+    return f'{client.first_name} {client.last_name}'.strip() or client.sender_id
+
+
 class ExcelExporter:
 
     @staticmethod
@@ -13,7 +21,6 @@ class ExcelExporter:
         ws = wb.active
         ws.title = 'Conversations'
 
-        # Header style
         header_font = Font(bold=True, color='FFFFFF')
         header_fill = PatternFill(fill_type='solid', fgColor='2E5FA3')
 
@@ -24,14 +31,13 @@ class ExcelExporter:
 
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
-            cell.font    = header_font
-            cell.fill    = header_fill
+            cell.font      = header_font
+            cell.fill      = header_fill
             cell.alignment = Alignment(horizontal='center')
 
-        # Data rows
         for row, conv in enumerate(queryset, 2):
             ws.cell(row=row, column=1,  value=str(conv.id)[:8] + '...')
-            ws.cell(row=row, column=2,  value=conv.client.full_name())
+            ws.cell(row=row, column=2,  value=_client_name(conv.client))          # FIXED
             ws.cell(row=row, column=3,  value=conv.client.email or '-')
             ws.cell(row=row, column=4,  value=conv.client.phone or '-')
             ws.cell(row=row, column=5,  value=conv.client.source)
@@ -41,7 +47,6 @@ class ExcelExporter:
             ws.cell(row=row, column=9,  value=conv.created_at.strftime('%Y-%m-%d %H:%M'))
             ws.cell(row=row, column=10, value=conv.updated_at.strftime('%Y-%m-%d %H:%M'))
 
-        # Auto-width columns
         for col in ws.columns:
             max_length = max(len(str(cell.value or '')) for cell in col)
             ws.column_dimensions[col[0].column_letter].width = min(max_length + 4, 40)
@@ -133,7 +138,7 @@ class ExcelExporter:
 
         wb = openpyxl.Workbook()
 
-        # Sheet 1 — Overview
+        # ── Sheet 1: Overview ──────────────────────────────────────────────────
         ws1 = wb.active
         ws1.title = 'Overview'
 
@@ -143,24 +148,24 @@ class ExcelExporter:
 
         ws1['A4'] = 'CONVERSATIONS'
         ws1['A4'].font = Font(bold=True)
-        ws1['A5']  = 'Total';        ws1['B5']  = overview['conversations']['total']
-        ws1['A6']  = 'Open';         ws1['B6']  = overview['conversations']['open']
-        ws1['A7']  = 'Pending';      ws1['B7']  = overview['conversations']['pending']
-        ws1['A8']  = 'Resolved';     ws1['B8']  = overview['conversations']['resolved']
+        ws1['A5']  = 'Total';     ws1['B5']  = overview['conversations']['total']
+        ws1['A6']  = 'Open';      ws1['B6']  = overview['conversations']['open']
+        ws1['A7']  = 'Pending';   ws1['B7']  = overview['conversations']['pending']
+        ws1['A8']  = 'Resolved';  ws1['B8']  = overview['conversations']['resolved']
 
         ws1['A10'] = 'CLIENTS'
         ws1['A10'].font = Font(bold=True)
-        ws1['A11'] = 'Total';        ws1['B11'] = overview['clients']['total']
-        ws1['A12'] = 'New Today';    ws1['B12'] = overview['clients']['new_today']
+        ws1['A11'] = 'Total';     ws1['B11'] = overview['clients']['total']
+        ws1['A12'] = 'New Today'; ws1['B12'] = overview['clients']['new_today']
 
         ws1['A14'] = 'AGENTS'
         ws1['A14'].font = Font(bold=True)
-        ws1['A15'] = 'Total';        ws1['B15'] = overview['agents']['total']
-        ws1['A16'] = 'Online';       ws1['B16'] = overview['agents']['online']
-        ws1['A17'] = 'Busy';         ws1['B17'] = overview['agents']['busy']
-        ws1['A18'] = 'Offline';      ws1['B18'] = overview['agents']['offline']
+        ws1['A15'] = 'Total';     ws1['B15'] = overview['agents']['total']
+        ws1['A16'] = 'Online';    ws1['B16'] = overview['agents']['online']
+        ws1['A17'] = 'Busy';      ws1['B17'] = overview['agents']['busy']
+        ws1['A18'] = 'Offline';   ws1['B18'] = overview['agents']['offline']
 
-        # Sheet 2 — Agent Performance
+        # ── Sheet 2: Agent Performance ─────────────────────────────────────────
         ws2 = wb.create_sheet('Agent Performance')
         headers = ['Agent', 'Email', 'Total', 'Resolved', 'Open', 'Resolution %', 'Status']
         for col, h in enumerate(headers, 1):
@@ -177,7 +182,7 @@ class ExcelExporter:
             ws2.cell(row=row, column=6, value=f"{agent['resolution_rate']}%")
             ws2.cell(row=row, column=7, value=agent['current_status'])
 
-        # Sheet 3 — Platform Breakdown
+        # ── Sheet 3: Platform Breakdown ────────────────────────────────────────
         ws3 = wb.create_sheet('By Platform')
         headers = ['Platform', 'Total', 'Open', 'Resolved']
         for col, h in enumerate(headers, 1):
@@ -191,7 +196,7 @@ class ExcelExporter:
             ws3.cell(row=row, column=3, value=p.get('open', 0))
             ws3.cell(row=row, column=4, value=p.get('resolved', 0))
 
-        # Sheet 4 — Trends
+        # ── Sheet 4: Daily Trends ──────────────────────────────────────────────
         ws4 = wb.create_sheet('Daily Trends')
         headers = ['Date', 'Total', 'Open', 'Resolved', 'Pending']
         for col, h in enumerate(headers, 1):
@@ -226,17 +231,15 @@ class PDFExporter:
         styles = getSampleStyleSheet()
         story  = []
 
-        # Title
         story.append(Paragraph(title, styles['Title']))
         story.append(Paragraph(f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}', styles['Normal']))
         story.append(Spacer(1, 0.5 * cm))
 
-        # Table data
         data = [['Client', 'Source', 'Agent', 'Status', 'Platform', 'Created']]
 
         for conv in queryset:
             data.append([
-                conv.client.full_name()[:20],
+                _client_name(conv.client)[:20],                                    # FIXED
                 conv.client.source,
                 conv.agent.full_name()[:15] if conv.agent else 'Unassigned',
                 conv.status,
@@ -339,14 +342,14 @@ class PDFExporter:
             ['Online Agents',       overview['agents']['online']],
             ['Busy Agents',         overview['agents']['busy']],
         ]
-        ov_table = Table(overview_data, colWidths=[10*cm, 5*cm])
+        ov_table = Table(overview_data, colWidths=[10 * cm, 5 * cm])
         ov_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E5FA3')),
             ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
             ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F7F9FC')]),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING',    (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ]))
         story.append(ov_table)
@@ -370,8 +373,8 @@ class PDFExporter:
             ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F7F9FC')]),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
-            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('ALIGN',         (1, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ]))
         story.append(ag_table)
