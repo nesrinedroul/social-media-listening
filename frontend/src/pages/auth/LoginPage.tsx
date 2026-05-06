@@ -6,11 +6,12 @@ import { useState } from 'react';
 import { Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { authApi } from '../../api/services';
 import { useAuthStore } from '../../store/authStore';
+import { requestNotificationPermission } from '../../hooks/useNotifications';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 
 const schema = z.object({
-  email: z.string().email('Invalid email'),
+  email:    z.string().email('Invalid email'),
   password: z.string().min(1, 'Password required'),
 });
 type FormData = z.infer<typeof schema>;
@@ -21,9 +22,11 @@ export function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [apiError, setApiError] = useState('');
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
-    resolver: zodResolver(schema),
-  });
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data: FormData) => {
     setApiError('');
@@ -32,6 +35,10 @@ export function LoginPage() {
       setTokens(tokens.access, tokens.refresh);
       const { data: me } = await authApi.me();
       setUser(me);
+
+      // Ask for browser notification permission right after login
+      requestNotificationPermission();
+
       navigate('/conversations');
     } catch {
       setApiError('Invalid email or password');
@@ -85,7 +92,12 @@ export function LoginPage() {
               </p>
             )}
 
-            <Button type="submit" loading={isSubmitting} size="lg" className="w-full justify-center mt-2">
+            <Button
+              type="submit"
+              loading={isSubmitting}
+              size="lg"
+              className="w-full justify-center mt-2"
+            >
               Sign in
             </Button>
           </form>

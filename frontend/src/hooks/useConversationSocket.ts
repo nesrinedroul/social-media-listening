@@ -2,6 +2,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { WS_BASE } from '../api/client';
 import type { WsEvent } from '../types';
+import { handleNewConversationNotification } from './useNotifications';
 
 interface UseConversationSocketOptions {
   onEvent: (event: WsEvent) => void;
@@ -22,7 +23,6 @@ export function useConversationSocket({ onEvent, enabled = true }: UseConversati
     wsRef.current = ws;
 
     ws.onopen = () => {
-      // Send heartbeat every 30 seconds to keep agent online
       heartbeatRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'heartbeat' }));
@@ -33,6 +33,12 @@ export function useConversationSocket({ onEvent, enabled = true }: UseConversati
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data) as WsEvent;
+
+        // Show toast + browser notification for new conversations
+        if (data.type === 'new_conversation') {
+          handleNewConversationNotification(data);
+        }
+
         onEventRef.current(data);
       } catch {
         // ignore malformed
@@ -41,7 +47,6 @@ export function useConversationSocket({ onEvent, enabled = true }: UseConversati
 
     ws.onclose = () => {
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      // Reconnect after 3 seconds
       if (enabled) setTimeout(connect, 3_000);
     };
 

@@ -12,10 +12,10 @@ import { Modal } from '../../components/ui/Modal';
 import { fullName, timeAgo } from '../../utils/utils';
 import type { Role, User} from '../../types';
 
-// ─── Schemas ─────────────────────────────────────────────────────────────────
+// ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const addUserSchema = z.object({
-  email:      z.string().email('Invalid email'),
+  email:      z.string().email(),
   password:   z.string().min(8, 'Min 8 characters'),
   password2:  z.string(),
   first_name: z.string().optional(),
@@ -51,44 +51,53 @@ const roleBadge: Record<Role, string> = {
   agent:      'bg-active text-3',
 };
 
+// ─── Shared select class ──────────────────────────────────────────────────────
+
+const selectCls =
+  'bg-input border border-theme rounded-lg px-2 py-1.5 text-sm text-2 outline-none focus:border-brand';
+
 // ─── UsersPage ────────────────────────────────────────────────────────────────
 
 export function UsersPage() {
   const qc = useQueryClient();
-  const [roleFilter, setRoleFilter] = useState<string>('');
-  const [search, setSearch] = useState('');
-  const [addOpen, setAddOpen] = useState(false);
-  const [deactivateUserId, setDeactivateUserId] = useState<string | null>(null);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
-  const [resetSuccess, setResetSuccess] = useState(false);
 
+  // ── Filter state ──────────────────────────────────────────────────────────
+  const [roleFilter,   setRoleFilter]   = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');   // '' | 'online' | 'busy' | 'offline'
+  const [activeFilter, setActiveFilter] = useState<string>('');   // '' | 'true' | 'false'
+  const [search,       setSearch]       = useState('');
+
+  // ── Modal state ───────────────────────────────────────────────────────────
+  const [addOpen,          setAddOpen]          = useState(false);
+  const [deactivateUserId, setDeactivateUserId] = useState<string | null>(null);
+  const [editingUser,      setEditingUser]      = useState<User | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [resetSuccess,     setResetSuccess]     = useState(false);
+
+  // ── Data ──────────────────────────────────────────────────────────────────
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users', roleFilter],
     queryFn: () => authApi.users(roleFilter || undefined).then(r => r.data),
   });
 
+  // Client-side filtering (role filter is done server-side; status + active + search here)
   const filtered = users.filter(u => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return fullName(u).toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+    if (search) {
+      const q = search.toLowerCase();
+      if (!fullName(u).toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
+    }
+    if (statusFilter && u.status !== statusFilter) return false;
+    if (activeFilter !== '') {
+      const wantActive = activeFilter === 'true';
+      if (u.is_active !== wantActive) return false;
+    }
+    return true;
   });
 
-  // ─── Mutations ──────────────────────────────────────────────────────────────
-
+  // ── Mutations ─────────────────────────────────────────────────────────────
   const deactivateMutation = useMutation({
     mutationFn: (id: string) => authApi.updateUser(id, { is_active: false }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setDeactivateUserId(null); },
-  });
-
-  // ─── Add user form ──────────────────────────────────────────────────────────
-
-  const {
-    register, handleSubmit, reset,
-    formState: { errors, isSubmitting },
-  } = useForm<AddUserFormData>({
-    resolver: zodResolver(addUserSchema),
-    defaultValues: { role: 'agent' },
   });
 
   const createMutation = useMutation({
@@ -100,16 +109,6 @@ export function UsersPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setAddOpen(false); reset(); },
   });
 
-  // ─── Edit user form ─────────────────────────────────────────────────────────
-
-  const {
-    register: registerEdit,
-    handleSubmit: handleSubmitEdit,
-    reset: resetEdit,
-    setValue: setEditValue,
-    formState: { errors: editErrors, isSubmitting: editSubmitting },
-  } = useForm<EditUserFormData>({ resolver: zodResolver(editUserSchema) });
-
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: EditUserFormData }) =>
       authApi.updateUser(id, data),
@@ -119,6 +118,37 @@ export function UsersPage() {
       resetEdit();
     },
   });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
+      authApi.resetPassword(id, password),
+    onSuccess: () => {
+      setResetSuccess(true);
+      resetPwForm();
+      setTimeout(() => {
+        setResetPasswordUser(null);
+        setResetSuccess(false);
+      }, 1800);
+    },
+  });
+
+  // ── Add-user form ─────────────────────────────────────────────────────────
+  const {
+    register, handleSubmit, reset,
+    formState: { errors, isSubmitting },
+  } = useForm<AddUserFormData>({
+    resolver: zodResolver(addUserSchema),
+    defaultValues: { role: 'agent' },
+  });
+
+  // ── Edit-user form ────────────────────────────────────────────────────────
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    reset: resetEdit,
+    setValue: setEditValue,
+    formState: { errors: editErrors, isSubmitting: editSubmitting },
+  } = useForm<EditUserFormData>({ resolver: zodResolver(editUserSchema) });
 
   const openEditModal = (user: User) => {
     setEditingUser(user);
@@ -134,27 +164,13 @@ export function UsersPage() {
     updateMutation.mutate({ id: editingUser.id, data });
   };
 
-  // ─── Reset password form ────────────────────────────────────────────────────
-
+  // ── Reset password form ───────────────────────────────────────────────────
   const {
     register: registerReset,
     handleSubmit: handleSubmitReset,
     reset: resetPwForm,
     formState: { errors: resetErrors, isSubmitting: resetSubmitting },
   } = useForm<ResetPasswordFormData>({ resolver: zodResolver(resetPasswordSchema) });
-
-  const resetPasswordMutation = useMutation({
-    mutationFn: ({ id, password }: { id: string; password: string }) =>
-      authApi.resetPassword(id, password),
-    onSuccess: () => {
-      setResetSuccess(true);
-      resetPwForm();
-      setTimeout(() => {
-        setResetPasswordUser(null);
-        setResetSuccess(false);
-      }, 1800);
-    },
-  });
 
   const handleResetPassword = (data: ResetPasswordFormData) => {
     if (!resetPasswordUser) return;
@@ -172,8 +188,9 @@ export function UsersPage() {
             <UserPlus size={13} /> Add user
           </Button>
         </div>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        <div className="flex gap-2 flex-wrap">
+          {/* Search */}
+          <div className="relative flex-1 min-w-36">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-3" />
             <input
               value={search}
@@ -182,15 +199,28 @@ export function UsersPage() {
               className="w-full bg-input border border-theme rounded-lg pl-8 pr-3 py-1.5 text-sm text-1 placeholder:text-3 outline-none focus:border-brand transition-colors"
             />
           </div>
-          <select
-            value={roleFilter}
-            onChange={e => setRoleFilter(e.target.value)}
-            className="bg-input border border-theme rounded-lg px-2 py-1.5 text-sm text-2 outline-none focus:border-brand"
-          >
+
+          {/* Role */}
+          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={selectCls}>
             <option value="">All roles</option>
             <option value="admin">Admin</option>
             <option value="supervisor">Supervisor</option>
             <option value="agent">Agent</option>
+          </select>
+
+          {/* Status — client-side */}
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={selectCls}>
+            <option value="">All statuses</option>
+            <option value="online">Online</option>
+            <option value="busy">Busy</option>
+            <option value="offline">Offline</option>
+          </select>
+
+          {/* Active — client-side */}
+          <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)} className={selectCls}>
+            <option value="">All users</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
           </select>
         </div>
       </div>
@@ -200,6 +230,13 @@ export function UsersPage() {
         {isLoading && (
           <div className="flex items-center justify-center py-12 text-3 text-sm">Loading…</div>
         )}
+
+        {!isLoading && filtered.length === 0 && (
+          <div className="flex items-center justify-center py-12 text-3 text-sm">
+            No users match the current filters.
+          </div>
+        )}
+
         {filtered.map(u => (
           <div key={u.id} className="flex items-center gap-4 px-5 py-3.5">
             <Avatar name={fullName(u)} size="md" status={u.status} />
@@ -424,7 +461,6 @@ export function UsersPage() {
           </Button>
         </div>
       </Modal>
-
     </div>
   );
 }

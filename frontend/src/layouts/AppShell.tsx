@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './SideBar';
+import { Toaster } from '../components/ui/Toaster';
 import { useAuthStore } from '../store/authStore';
 import { useConversationSocket } from '../hooks/useConversationSocket';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,6 +27,8 @@ export function AppShell() {
       <main className="flex-1 overflow-hidden">
         <Outlet />
       </main>
+      {/* Toast portal — renders above everything */}
+      <Toaster />
     </div>
   );
 }
