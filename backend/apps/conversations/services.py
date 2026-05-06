@@ -112,14 +112,11 @@ class ConversationService:
             assigned_by=assigned_by,
         )
 
-        # Increment counter + set agent to BUSY automatically
+        # Just increment counter — don't touch status
         User.objects.filter(pk=agent.pk).update(
             open_conversations=agent.open_conversations + 1,
             last_assigned_at=timezone.now(),
-            status=User.Status.BUSY,  # ← auto busy when assigned
         )
-
-        print(f'Agent {agent.email} set to BUSY after assignment')
 
     @staticmethod
     def reassign(conversation_id: str, new_agent_id: str, supervisor: User):
