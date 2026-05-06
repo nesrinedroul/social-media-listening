@@ -56,3 +56,20 @@ class AgentStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
         fields = ('status',)
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['user'] = {
+            'id':            str(self.user.id),
+            'email':         self.user.email,
+            'first_name':    self.user.first_name,
+            'last_name':     self.user.last_name,
+            'role':          self.user.role,
+            'status':        self.user.status,
+            'manual_status': self.user.manual_status,
+        }
+        return data

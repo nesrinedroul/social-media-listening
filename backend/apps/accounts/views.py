@@ -2,11 +2,35 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import User
-from .serializers import AdminUserUpdateSerializer, UserSerializer, RegisterSerializer, AgentStatusSerializer
+from .serializers import (
+    AdminUserUpdateSerializer,
+    UserSerializer,
+    RegisterSerializer,
+    AgentStatusSerializer,
+    CustomTokenObtainPairSerializer,
+)
 from .permissions import IsAdmin, IsAdminOrSupervisor
 
+
+class CustomLoginView(TokenObtainPairView):
+    """Login — returns access token, refresh token, and user info with role"""
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+class HeartbeatView(APIView):
+    """Agent sends every 30s to stay active"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from django.utils import timezone
+        if request.user.role == 'agent':
+            User.objects.filter(pk=request.user.pk).update(
+                last_seen=timezone.now(),
+            )
+        return Response({'status': 'ok'})
 
 class RegisterView(generics.CreateAPIView):
     """Admin creates new agent or supervisor accounts"""
