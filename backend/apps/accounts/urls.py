@@ -1,6 +1,8 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import AgentListView, RegisterView, UserListView, UserDetailView, MeView, AgentStatusView, LogoutView
+from .views import AgentListView, RegisterView, UserListView, UserDetailView, MeView, AgentStatusView, LogoutView 
+from .views import AdminResetPasswordView 
+from .views import ChangePasswordView
 
 urlpatterns = [
     # Auth
@@ -14,6 +16,13 @@ urlpatterns = [
     path('users/',         UserListView.as_view(),         name='user-list'),
     path('users/<uuid:pk>/', UserDetailView.as_view(),    name='user-detail'),
     path('agents/', AgentListView.as_view(), name='agent-list'),
+    path('groups/',                          AgentGroupListCreateView.as_view(),  name='group-list'),
+    path('groups/<uuid:pk>/',               AgentGroupDetailView.as_view(),      name='group-detail'),
+    path('groups/<uuid:pk>/add-agent/',     AddAgentToGroupView.as_view(),       name='group-add-agent'),
+    path('groups/<uuid:pk>/remove-agent/',  RemoveAgentFromGroupView.as_view(),  name='group-remove-agent'),
+    path('groups/platform/<str:platform>/', AgentGroupsByPlatformView.as_view(), name='group-by-platform'),
+    path('users/<uuid:pk>/reset-password/', AdminResetPasswordView.as_view(), name='reset-password'),
+    path('password/change/', ChangePasswordView.as_view(), name='change-password'),
 ]
 from .group_views import (
     AgentGroupListCreateView,
@@ -23,16 +32,3 @@ from .group_views import (
     AgentGroupsByPlatformView,
 )
 
-# ajoute ces URLs à urlpatterns:
-path('groups/',                          AgentGroupListCreateView.as_view(),  name='group-list'),
-path('groups/<uuid:pk>/',               AgentGroupDetailView.as_view(),      name='group-detail'),
-path('groups/<uuid:pk>/add-agent/',     AddAgentToGroupView.as_view(),       name='group-add-agent'),
-path('groups/<uuid:pk>/remove-agent/',  RemoveAgentFromGroupView.as_view(),  name='group-remove-agent'),
-path('groups/platform/<str:platform>/', AgentGroupsByPlatformView.as_view(), name='group-by-platform'),
-from .views import AdminResetPasswordView
-
-# add to urlpatterns:
-path('users/<uuid:pk>/reset-password/', AdminResetPasswordView.as_view(), name='reset-password'),
-from .views import ChangePasswordView
-
-path('password/change/', ChangePasswordView.as_view(), name='change-password'),
