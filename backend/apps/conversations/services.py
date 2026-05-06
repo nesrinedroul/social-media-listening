@@ -1,4 +1,5 @@
 import platform
+from venv import logger
 
 from django.db import transaction
 from django.utils import timezone
@@ -259,3 +260,46 @@ class ConversationService:
             User.objects.filter(pk=agent.pk).update(
                 status=User.Status.BUSY,
             )
+        
+    @staticmethod
+    def assign_pending_to_agent(agent: User):
+        """
+        Called when an agent comes online.
+        Finds all PENDING unassigned conversations in the agent's platform groups
+        and assigns them respecting workload order.
+        """
+        from apps.accounts.models import AgentGroup
+
+        # Get all platforms this agent belongs to
+        agent_groups = AgentGroup.objects.filter(
+            agents=agent,
+            is_active=True,
+        )
+
+        if not agent_groups.exists():
+            logger.info(f'Agent {agent.email} has no groups — skipping auto-assign')
+            return
+
+        platforms = agent_groups.values_list('platform', flat=True)
+
+        # Find all pending unassigned conversations for those platforms
+        pending = Conversation.objects.filter(
+            status=Conversation.Status.PENDING,
+            agent__isnull=True,
+            channel__platform__in=platforms,
+        ).select_related('client', 'channel').order_by('created_at')
+
+        if not pending.exists():
+            logger.info(f'No pending conversations for agent {agent.email}')
+            return
+
+        for conversation in pending:
+            # Re-check agent is still available before each assignment
+            agent.refresh_from_db()
+            if agent.status not in [User.Status.ONLINE, User.Status.BUSY]:
+                logger.info(f'Agent {agent.email} no longer available — stopping auto-assign')
+                break
+
+            ConversationService._assign(conversation, agent, assigned_by='system')
+            ConversationService._notify_agent(conversation, {})
+            logger.info(f'Auto-assigned pending conversation {conversation.id} → {agent.email}')
